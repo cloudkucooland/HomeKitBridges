@@ -146,11 +146,11 @@ func HTTPServer(ctx context.Context, addr string) {
 
 // for when we support multiple devices
 func chooseKonnected(mac string) *Konnected {
-    if k, ok := ks[mac]; ok {
-        return k
-    }
+	if k, ok := ks[mac]; ok {
+		return k
+	}
 
-    log.Info.Printf("unknown konnected sent request...")
+	log.Info.Printf("unknown konnected sent request...")
 	// not a known mac, return a bootstrap device
 	return nil // crash hard now
 }

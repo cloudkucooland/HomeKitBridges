@@ -47,7 +47,7 @@ func LoadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 	confFile.Close()
-    // log.Info.Printf(string(raw))
+	// log.Info.Printf(string(raw))
 
 	err = json.Unmarshal(raw, &conf)
 	if err != nil {

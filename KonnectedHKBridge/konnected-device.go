@@ -1,7 +1,7 @@
 package konnectedkhbridge
 
 import (
-    "fmt"
+	"fmt"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -11,9 +11,9 @@ import (
 
 type Konnected struct {
 	*accessory.A
-	ip  string
-	password string
-	pins map[uint8]interface{}
+	ip             string
+	password       string
+	pins           map[uint8]interface{}
 	SecuritySystem *KonnectedSvc
 }
 
@@ -29,7 +29,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 	}
 
 	acc.A = accessory.New(info, accessory.TypeSecuritySystem)
-    acc.ip = fmt.Sprintf("%s:%d", details.IP, details.Port)
+	acc.ip = fmt.Sprintf("%s:%d", details.IP, details.Port)
 	acc.password = d.Password
 
 	acc.SecuritySystem = NewKonnectedSvc()

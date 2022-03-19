@@ -90,19 +90,19 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 		Timeout:   time.Second * time.Duration(10),
 	}
 
-    // our list of devices, indexed by Mac
+	// our list of devices, indexed by Mac
 	ks = make(map[string]*Konnected)
 
-    // the list returned to the caller, used to populate HAP
+	// the list returned to the caller, used to populate HAP
 	var klist []*accessory.A
 
 	for _, d := range config.Devices {
-        if d.Mac == "" {
-            log.Info.Printf("Mac address required: %+v", d)
-            continue
-        }
+		if d.Mac == "" {
+			log.Info.Printf("Mac address required: %+v", d)
+			continue
+		}
 
-        // do UPnP discovery, looking for a konnected device with this Mac
+		// do UPnP discovery, looking for a konnected device with this Mac
 		d.ip = discover(d.Mac)
 
 		details := &system{
@@ -127,9 +127,9 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 			}
 		} else {
 			log.Info.Printf("unable to discover (%s); using bootstrap mode", d.Mac)
-        }
+		}
 
-        k := NewKonnected(details, &d)
+		k := NewKonnected(details, &d)
 		// before or after NewKonnected?
 		// k.provision(details, &config, &d)
 		ks[d.Mac] = k
@@ -228,12 +228,12 @@ func (k *Konnected) getStatusAndUpdate() error {
 func Background() {
 	go func() {
 		for range time.Tick(time.Second * time.Duration(20)) {
-            for _, k := range ks {
-			err := k.getStatusAndUpdate()
-			if err != nil {
-				log.Info.Println(err.Error())
+			for _, k := range ks {
+				err := k.getStatusAndUpdate()
+				if err != nil {
+					log.Info.Println(err.Error())
+				}
 			}
-        }
 		}
 	}()
 }
