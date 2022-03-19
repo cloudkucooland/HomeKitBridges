@@ -68,6 +68,9 @@ type KP115Svc struct {
 	ProgramMode       *characteristic.ProgramMode
 	SetDuration       *characteristic.SetDuration
 	RemainingDuration *characteristic.RemainingDuration
+	Volt              *volt
+	Watt              *watt
+	Amp               *amp
 }
 
 func NewKP115Svc() *KP115Svc {
@@ -91,6 +94,18 @@ func NewKP115Svc() *KP115Svc {
 	svc.AddC(svc.RemainingDuration.C)
 	svc.RemainingDuration.SetValue(0)
 
+	svc.Volt = NewVolt()
+	svc.AddC(svc.Volt.C)
+	svc.Volt.SetValue(120000)
+
+	svc.Watt = NewWatt()
+	svc.AddC(svc.Watt.C)
+	svc.Watt.SetValue(1)
+
+	svc.Amp = NewAmp()
+	// svc.AddC(svc.Amp.C)
+	svc.Amp.SetValue(1)
+
 	return &svc
 }
 
@@ -108,6 +123,69 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		h.Outlet.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 	}
 
+	kd, err := kasa.NewDevice(ip.String())
+	if err != nil {
+		log.Info.Printf(err.Error())
+		return
+	}
+	em, err := kd.GetEmeter()
+	if err != nil {
+		log.Info.Printf(err.Error())
+		return
+	}
+	h.Outlet.Volt.SetValue(int(em.VoltageMV))
+	h.Outlet.Watt.SetValue(int(em.PowerMW))
+	h.Outlet.Amp.SetValue(int(em.CurrentMA))
+
 	// SetDuration is write-only, no need to update it here
 	// Process RemainingDuration ?
 }
+
+// move this to custom characteristic file
+type volt struct {
+	*characteristic.Int
+}
+
+func NewVolt() *volt {
+	c := characteristic.NewInt("10A")
+	c.Format = characteristic.FormatUInt32
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Description = "Current Voltage"
+	c.SetValue(0)
+
+	return &volt{c}
+}
+
+type watt struct {
+	*characteristic.Int
+}
+
+func NewWatt() *watt {
+	c := characteristic.NewInt("10D")
+	c.Format = characteristic.FormatUInt32
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Description = "Watts"
+	c.SetValue(0)
+
+	return &watt{c}
+}
+
+type amp struct {
+	*characteristic.Int
+}
+
+func NewAmp() *amp {
+	c := characteristic.NewInt("126")
+	c.Format = characteristic.FormatUInt32
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Description = "Current MA"
+	c.SetValue(0)
+
+	return &amp{c}
+}
+
+// https://github.com/plasticrake/homebridge-tplink-smarthome/blob/master/src/characteristics/amperes.ts
+// volt E863F10A-079E-48FF-8F27-9C2605A29F52
+// amps E863F126-079E-48FF-8F27-9C2605A29F52
+// watt E863F10D-079E-48FF-8F27-9C2605A29F52
+// kwh  E863F10C-079E-48FF-8F27-9C2605A29F52
