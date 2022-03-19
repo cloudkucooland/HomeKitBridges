@@ -1,0 +1,14 @@
+{
+        "IP": "192.168.12.176:15301",
+        "Mac": "f4cfa26f6a31",
+        "Password": "notyet",
+        "KonnectedZones":[
+                {"pin":1, "name":"Front Door", "type":"door"},
+                {"pin":2, "name":"Laundry Room Door", "type":"door"},
+                {"pin":5, "name":"Back Door", "type":"door"},
+                {"pin":6, "name":"Attic Hatch", "type":"door"},
+                {"pin":7, "name":"Conservatory Motion", "type":"motion"},
+                {"pin":8, "name":"Buzzer", "type":"buzzer"},
+                {"pin":9, "name":"Unused", "type":"unused"}
+        ]
+}
