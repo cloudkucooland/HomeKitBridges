@@ -96,14 +96,14 @@ func NewKP115Svc() *KP115Svc {
 
 	svc.Volt = NewVolt()
 	svc.AddC(svc.Volt.C)
-	svc.Volt.SetValue(120000)
+	svc.Volt.SetValue(120)
 
 	svc.Watt = NewWatt()
 	svc.AddC(svc.Watt.C)
 	svc.Watt.SetValue(1)
 
 	svc.Amp = NewAmp()
-	// svc.AddC(svc.Amp.C)
+	svc.AddC(svc.Amp.C)
 	svc.Amp.SetValue(1)
 
 	return &svc
@@ -133,8 +133,8 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf(err.Error())
 		return
 	}
-	h.Outlet.Volt.SetValue(int(em.VoltageMV))
-	h.Outlet.Watt.SetValue(int(em.PowerMW))
+	h.Outlet.Volt.SetValue(int(em.VoltageMV / 1000))
+	h.Outlet.Watt.SetValue(int(em.PowerMW / 1000))
 	h.Outlet.Amp.SetValue(int(em.CurrentMA))
 
 	// SetDuration is write-only, no need to update it here
@@ -150,8 +150,8 @@ func NewVolt() *volt {
 	c := characteristic.NewInt("10A")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
-	c.Description = "Current Voltage"
-	c.SetValue(0)
+	c.Description = "Voltage"
+	c.SetValue(120)
 
 	return &volt{c}
 }
@@ -175,7 +175,7 @@ type amp struct {
 }
 
 func NewAmp() *amp {
-	c := characteristic.NewInt("126")
+	c := characteristic.NewInt("10B") // 126
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Current MA"

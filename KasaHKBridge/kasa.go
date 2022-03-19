@@ -21,11 +21,14 @@ var refresh chan bool
 var bufsize int = 2048
 var packetconn *net.UDPConn
 var broadcasts []net.IP
+var pollInterval time.Duration = 30
 
 type kasaDevice interface {
 	getA() *accessory.A
 	getName() string
 	update(kasa.KasaDevice, net.IP)
+	getLastUpdate() time.Time
+	unreachable()
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
@@ -153,10 +156,18 @@ func Devices() []*accessory.A {
 }
 
 func poller(ctx context.Context) {
-	t := time.Tick(30 * time.Second)
+	t := time.Tick(pollInterval * time.Second)
 
 	for {
 		discover()
+
+		n := time.Now()
+		b := n.Add(0 - (5 * pollInterval * time.Second))
+		for _, k := range kasas {
+			if k.getLastUpdate().Before(b) {
+				k.unreachable()
+			}
+		}
 
 		select {
 		case <-ctx.Done():

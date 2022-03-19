@@ -32,6 +32,14 @@ func (g *generic) getName() string {
 	return g.Sysinfo.Alias
 }
 
+func (g *generic) getLastUpdate() time.Time {
+	return g.lastUpdate
+}
+
+func (g *generic) unreachable() {
+	g.reachable.SetValue(false)
+}
+
 func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 	g.Sysinfo = k
 	g.lastUpdate = time.Now()
