@@ -118,16 +118,20 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		h.Outlet.OutletInUse.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	}
 
-	if h.Outlet.ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
-		log.Info.Printf("updating HomeKit: [%s]:[%s] ProgramMode %s\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
-		h.Outlet.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
-	}
-
 	kd, err := kasa.NewDevice(ip.String())
 	if err != nil {
 		log.Info.Printf(err.Error())
 		return
 	}
+
+	if h.Outlet.ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
+		log.Info.Printf("updating HomeKit: [%s]:[%s] ProgramMode %s\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
+		h.Outlet.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
+		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
+			_ = kd.ClearCountdownRules()
+		}
+	}
+
 	em, err := kd.GetEmeter()
 	if err != nil {
 		log.Info.Printf(err.Error())
@@ -138,9 +142,9 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 	h.Outlet.Amp.SetValue(int(em.CurrentMA))
 
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
-		d, _ := kasa.NewDevice(h.ip.String())
-		rules, _ := d.GetCountdownRules()
+		rules, _ := kd.GetCountdownRules()
 		for _, rule := range *rules {
+			log.Info.Printf("%+v", rule)
 			if rule.Enable > 0 {
 				log.Info.Printf("updating HomeKit: [%s]:[%s] RemainingDuration %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
 				h.Outlet.RemainingDuration.SetValue(int(rule.Remaining))
