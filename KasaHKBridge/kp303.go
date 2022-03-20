@@ -74,4 +74,15 @@ func (h *KP303) update(k kasa.KasaDevice, ip net.IP) {
 			h.Outlets[i].OutletInUse.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 		}
 	}
+
+	/* if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
+	        d, _ := kasa.NewDevice(h.ip.String())
+	        rules, _ := d.GetCountdownRules()
+	        for _, rule := range *rules {
+	            if rule.Enable > 0 {
+			        log.Info.Printf("updating HomeKit: [%s]:[%s] RemainingDuration %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
+		            h.Outlet.RemainingDuration.SetValue(int(rule.Remaining))
+	            }
+	        }
+	    } */
 }

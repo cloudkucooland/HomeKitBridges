@@ -100,6 +100,16 @@ func (h *HS200) update(k kasa.KasaDevice, ip net.IP) {
 		h.Switch.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 	}
 
-	// SetDuration is write-only, no need to update it here
-	// Process RemainingDuration ?
+	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
+		d, _ := kasa.NewDevice(h.ip.String())
+		rules, _ := d.GetCountdownRules()
+		for _, rule := range *rules {
+			if rule.Enable > 0 {
+				log.Info.Printf("updating HomeKit: [%s]:[%s] RemainingDuration %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
+				h.Switch.RemainingDuration.SetValue(int(rule.Remaining))
+			}
+		}
+	} else {
+		h.Switch.RemainingDuration.SetValue(0)
+	}
 }

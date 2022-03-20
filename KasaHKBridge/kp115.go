@@ -137,8 +137,18 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 	h.Outlet.Watt.SetValue(int(em.PowerMW / 1000))
 	h.Outlet.Amp.SetValue(int(em.CurrentMA))
 
-	// SetDuration is write-only, no need to update it here
-	// Process RemainingDuration ?
+	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
+		d, _ := kasa.NewDevice(h.ip.String())
+		rules, _ := d.GetCountdownRules()
+		for _, rule := range *rules {
+			if rule.Enable > 0 {
+				log.Info.Printf("updating HomeKit: [%s]:[%s] RemainingDuration %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
+				h.Outlet.RemainingDuration.SetValue(int(rule.Remaining))
+			}
+		}
+	} else {
+		h.Outlet.RemainingDuration.SetValue(0)
+	}
 }
 
 // move this to custom characteristic file

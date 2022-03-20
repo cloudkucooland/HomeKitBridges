@@ -233,6 +233,7 @@ func setCountdown(ip net.IP, target bool, dur int) error {
 		return err
 	}
 
+	// update HomeKit display
 	if err := k.SetMode("count_down"); err != nil {
 		log.Info.Printf(err.Error())
 		return err

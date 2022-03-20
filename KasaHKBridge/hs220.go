@@ -116,4 +116,17 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf("updating HomeKit: [%s]:[%s] ProgramMode %s\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Lightbulb.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 	}
+
+	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
+		d, _ := kasa.NewDevice(h.ip.String())
+		rules, _ := d.GetCountdownRules()
+		for _, rule := range *rules {
+			if rule.Enable > 0 {
+				log.Info.Printf("updating HomeKit: [%s]:[%s] RemainingDuration %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
+				h.Lightbulb.RemainingDuration.SetValue(int(rule.Remaining))
+			}
+		}
+	} else {
+		h.Lightbulb.RemainingDuration.SetValue(0)
+	}
 }
