@@ -56,7 +56,10 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 			return
 		}
 		acc.Lightbulb.ProgramMode.SetValue(characteristic.ProgramModeProgramScheduled)
+		acc.Lightbulb.RemainingDuration.SetValue(when)
 	})
+
+	// TODO ADD handlers for dimmer parameters
 
 	acc.Lightbulb.AddC(acc.reachable.C)
 	acc.reachable.SetValue(true)
@@ -73,6 +76,13 @@ type HS220Svc struct {
 	ProgramMode       *characteristic.ProgramMode
 	SetDuration       *characteristic.SetDuration
 	RemainingDuration *characteristic.RemainingDuration
+
+	FadeOnTime    *fadeOnTime
+	FadeOffTime   *fadeOffTime
+	GentleOnTime  *gentleOnTime
+	GentleOffTime *gentleOffTime
+	RampRate      *rampRate
+	MinThreshold  *minThreshold
 }
 
 func NewHS220Svc() *HS220Svc {
@@ -96,11 +106,38 @@ func NewHS220Svc() *HS220Svc {
 	svc.AddC(svc.RemainingDuration.C)
 	svc.RemainingDuration.SetValue(0)
 
+	svc.FadeOnTime = NewFadeOnTime()
+	svc.AddC(svc.FadeOnTime.C)
+	svc.FadeOnTime.SetValue(1000)
+
+	svc.FadeOffTime = NewFadeOffTime()
+	svc.AddC(svc.FadeOffTime.C)
+	svc.FadeOffTime.SetValue(1000)
+
+	svc.GentleOnTime = NewGentleOnTime()
+	svc.AddC(svc.GentleOnTime.C)
+	svc.GentleOnTime.SetValue(1000)
+
+	svc.GentleOnTime = NewGentleOnTime()
+	svc.AddC(svc.GentleOnTime.C)
+	svc.GentleOnTime.SetValue(3000)
+
+	svc.RampRate = NewRampRate()
+	// svc.AddC(svc.RampRate.C)
+	svc.RampRate.SetValue(30)
+
+	svc.MinThreshold = NewMinThreshold()
+	// svc.AddC(svc.MinThreshold.C)
+	svc.MinThreshold.SetValue(10)
+
+	// {"smartlife.iot.dimmer":{"get_dimmer_parameters":{"fadeOnTime":1000,"fadeOffTime":1000,"gentleOnTime":3000,"gentleOffTime":10000,"rampRate":30,"minThreshold":23,"bulb_type":1,"err_code":0}}}
+
 	return &svc
 }
 
 func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 	h.genericUpdate(k, ip)
+	d, _ := kasa.NewDevice(h.ip.String())
 
 	if h.Lightbulb.On.Value() != (k.GetSysinfo.Sysinfo.RelayState > 0) {
 		log.Info.Printf("updating HomeKit: [%s]:[%s] relay %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RelayState)
@@ -122,7 +159,6 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 	}
 
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
-		d, _ := kasa.NewDevice(h.ip.String())
 		rules, _ := d.GetCountdownRules()
 		for _, rule := range *rules {
 			if rule.Enable > 0 {
@@ -133,4 +169,8 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 	} else {
 		h.Lightbulb.RemainingDuration.SetValue(0)
 	}
+
+	// request dimmer parameters on broadcast
 }
+
+// TODO add update on dimmer parameters

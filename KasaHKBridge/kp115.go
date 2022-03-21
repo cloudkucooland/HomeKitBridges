@@ -51,6 +51,7 @@ func NewKP115(k kasa.KasaDevice, ip net.IP) *KP115 {
 			return
 		}
 		acc.Outlet.ProgramMode.SetValue(characteristic.ProgramModeProgramScheduled)
+		acc.Outlet.RemainingDuration.SetValue(when)
 	})
 
 	acc.Outlet.AddC(acc.reachable.C)
@@ -154,52 +155,3 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		h.Outlet.RemainingDuration.SetValue(0)
 	}
 }
-
-// move this to custom characteristic file
-type volt struct {
-	*characteristic.Int
-}
-
-func NewVolt() *volt {
-	c := characteristic.NewInt("10A")
-	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
-	c.Description = "Voltage"
-	c.SetValue(120)
-
-	return &volt{c}
-}
-
-type watt struct {
-	*characteristic.Int
-}
-
-func NewWatt() *watt {
-	c := characteristic.NewInt("10D")
-	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
-	c.Description = "Watts"
-	c.SetValue(0)
-
-	return &watt{c}
-}
-
-type amp struct {
-	*characteristic.Int
-}
-
-func NewAmp() *amp {
-	c := characteristic.NewInt("10B") // 126
-	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
-	c.Description = "Current MA"
-	c.SetValue(0)
-
-	return &amp{c}
-}
-
-// https://github.com/plasticrake/homebridge-tplink-smarthome/blob/master/src/characteristics/amperes.ts
-// volt E863F10A-079E-48FF-8F27-9C2605A29F52
-// amps E863F126-079E-48FF-8F27-9C2605A29F52
-// watt E863F10D-079E-48FF-8F27-9C2605A29F52
-// kwh  E863F10C-079E-48FF-8F27-9C2605A29F52

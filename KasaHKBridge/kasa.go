@@ -223,18 +223,15 @@ func setBrightness(ip net.IP, brightness int) error {
 // this doesn't need to be fast...
 func setCountdown(ip net.IP, target bool, dur int) error {
 	k, _ := kasa.NewDevice(ip.String())
+
+	// remove any existing countdowns
 	if err := k.ClearCountdownRules(); err != nil {
 		log.Info.Printf(err.Error())
 		return err
 	}
 
+	// add our new countdown
 	if err := k.AddCountdownRule(dur, target, "added from kasahkb"); err != nil {
-		log.Info.Printf(err.Error())
-		return err
-	}
-
-	// update HomeKit display
-	if err := k.SetMode("count_down"); err != nil {
 		log.Info.Printf(err.Error())
 		return err
 	}

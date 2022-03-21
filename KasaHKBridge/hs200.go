@@ -48,6 +48,7 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 			return
 		}
 		acc.Switch.ProgramMode.SetValue(characteristic.ProgramModeProgramScheduled)
+		acc.Switch.RemainingDuration.SetValue(when)
 	})
 
 	acc.Switch.AddC(acc.reachable.C)

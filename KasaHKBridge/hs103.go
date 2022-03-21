@@ -49,6 +49,7 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 			return
 		}
 		acc.Outlet.ProgramMode.SetValue(characteristic.ProgramModeProgramScheduled)
+		acc.Outlet.RemainingDuration.SetValue(when)
 	})
 
 	acc.Outlet.AddC(acc.reachable.C)
@@ -84,7 +85,7 @@ func NewHS103Svc() *HS103Svc {
 
 	svc.SetDuration = characteristic.NewSetDuration()
 	svc.AddC(svc.SetDuration.C)
-	// svc.SetDuration.SetValue(0)
+	svc.SetDuration.SetValue(0)
 
 	svc.RemainingDuration = characteristic.NewRemainingDuration()
 	svc.AddC(svc.RemainingDuration.C)

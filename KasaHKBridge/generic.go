@@ -21,7 +21,7 @@ type generic struct {
 
 	Sysinfo    kasa.Sysinfo
 	lastUpdate time.Time
-	ip         net.IP
+	ip         net.IP // would probably be better to use string
 }
 
 func (g *generic) getA() *accessory.A {
@@ -90,8 +90,6 @@ func (g *generic) finalize() {
 			return
 		}
 	})
-
-	// g.A.Info.AddC(g.reachable.C)
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
@@ -103,6 +101,7 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 	if g.Sysinfo.Alias != k.GetSysinfo.Sysinfo.Alias {
 		log.Info.Printf("renaming: [%s] -> [%s]\n", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Alias)
 		g.Sysinfo.Alias = k.GetSysinfo.Sysinfo.Alias
+		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
 
 	g.lastUpdate = time.Now()
