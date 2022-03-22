@@ -25,6 +25,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	device := vars["device"]
 
 	k := chooseKonnected(device) // if remote addr differes from expected, update?
+	if k == nil {
+		log.Info.Printf("Unknown device: %s %+v", device, r)
+		fmt.Fprint(w, `{ "status": "OK" }`)
+		return
+	}
 
 	log.Info.Printf("konnected state for device (%s / %s)", r.RemoteAddr, device)
 
