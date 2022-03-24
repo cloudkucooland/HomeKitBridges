@@ -61,8 +61,8 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	// TODO ADD handlers for dimmer parameters
 
-	acc.Lightbulb.AddC(acc.reachable.C)
-	acc.reachable.SetValue(true)
+	acc.AddS(acc.BridgingState.S)
+	acc.BridgingState.Reachable.SetValue(true)
 
 	return &acc
 }

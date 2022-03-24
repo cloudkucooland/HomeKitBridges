@@ -17,7 +17,7 @@ import (
 type generic struct {
 	*accessory.A
 
-	reachable *characteristic.Reachable
+	BridgingState *bstate
 
 	Sysinfo    kasa.Sysinfo
 	lastUpdate time.Time
@@ -37,7 +37,7 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
-	g.reachable.SetValue(false)
+	g.BridgingState.Reachable.SetValue(false)
 }
 
 func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
@@ -53,8 +53,8 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 		Firmware:     k.SWVersion,
 	}
 
-	g.reachable = characteristic.NewReachable()
-	g.reachable.Description = "Reachable"
+	g.BridgingState = NewBridgingState()
+	g.BridgingState.AccessoryIdentifier.SetValue(k.DeviceID)
 
 	return info
 }
@@ -102,6 +102,23 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf("renaming: [%s] -> [%s]\n", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Alias)
 		g.Sysinfo.Alias = k.GetSysinfo.Sysinfo.Alias
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
+	}
+
+	switch r := k.GetSysinfo.Sysinfo.RSSI; {
+	case r < -75:
+		g.BridgingState.LinkQuality.SetValue(0)
+	case r < -65:
+		g.BridgingState.LinkQuality.SetValue(1)
+	case r < -55:
+		g.BridgingState.LinkQuality.SetValue(2)
+	case r < -35:
+		g.BridgingState.LinkQuality.SetValue(3)
+	case r > -35:
+		g.BridgingState.LinkQuality.SetValue(4)
+	}
+
+	if !g.BridgingState.Reachable.Value() {
+		g.BridgingState.Reachable.SetValue(true)
 	}
 
 	g.lastUpdate = time.Now()

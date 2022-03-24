@@ -55,6 +55,8 @@ func Listener(ctx context.Context) {
 
 			d := kasa.Unscramble(buffer[:n])
 			s := string(d)
+			// log.Info.Println(s)
+
 			if s == `{"system":{"set_relay_state":{"err_code":0}}}` {
 				continue
 			}

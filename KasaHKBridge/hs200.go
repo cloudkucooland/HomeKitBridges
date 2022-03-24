@@ -51,8 +51,8 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 		acc.Switch.RemainingDuration.SetValue(when)
 	})
 
-	acc.Switch.AddC(acc.reachable.C)
-	acc.reachable.SetValue(true)
+	acc.AddS(acc.BridgingState.S)
+	acc.BridgingState.Reachable.SetValue(true)
 
 	return &acc
 }

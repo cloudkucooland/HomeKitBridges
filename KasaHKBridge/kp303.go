@@ -58,8 +58,8 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		acc.Outlets[i] = o
 	}
 
-	acc.Outlets[0].AddC(acc.reachable.C)
-	acc.reachable.SetValue(true)
+	acc.AddS(acc.BridgingState.S)
+	acc.BridgingState.Reachable.SetValue(true)
 
 	return &acc
 }
