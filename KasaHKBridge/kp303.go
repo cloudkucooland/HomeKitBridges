@@ -60,6 +60,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 	acc.AddS(acc.BridgingState.S)
 	acc.BridgingState.Reachable.SetValue(true)
+	acc.BridgingState.Category.SetValue(7) // outlet
 
 	return &acc
 }

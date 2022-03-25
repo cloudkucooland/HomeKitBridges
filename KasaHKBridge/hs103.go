@@ -54,6 +54,7 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 
 	acc.AddS(acc.BridgingState.S)
 	acc.BridgingState.Reachable.SetValue(true)
+	acc.BridgingState.Category.SetValue(7) // outlet
 
 	return &acc
 }

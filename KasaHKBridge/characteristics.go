@@ -52,8 +52,6 @@ func NewAmp() *amp {
 // watt E863F10D-079E-48FF-8F27-9C2605A29F52
 // kwh  E863F10C-079E-48FF-8F27-9C2605A29F52
 
-// {"smartlife.iot.dimmer":{"get_dimmer_parameters":{"fadeOnTime":1000,"fadeOffTime":1000,"gentleOnTime":3000,"gentleOffTime":10000,"rampRate":30,"minThreshold":23,"bulb_type":1,"err_code":0}}}
-
 type fadeOnTime struct {
 	*characteristic.Int
 }
@@ -61,8 +59,10 @@ type fadeOnTime struct {
 func NewFadeOnTime() *fadeOnTime {
 	c := characteristic.NewInt("110")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Fade On Time"
+	c.SetMinValue(0)
+	c.SetMaxValue(100000)
 	c.SetValue(0)
 
 	return &fadeOnTime{c}
@@ -75,8 +75,10 @@ type fadeOffTime struct {
 func NewFadeOffTime() *fadeOffTime {
 	c := characteristic.NewInt("111")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Fade Off Time"
+	c.SetMinValue(0)
+	c.SetMaxValue(100000)
 	c.SetValue(0)
 
 	return &fadeOffTime{c}
@@ -89,8 +91,10 @@ type gentleOnTime struct {
 func NewGentleOnTime() *gentleOnTime {
 	c := characteristic.NewInt("112")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Gentle On Time"
+	c.SetMinValue(0)
+	c.SetMaxValue(100000)
 	c.SetValue(0)
 
 	return &gentleOnTime{c}
@@ -103,8 +107,10 @@ type gentleOffTime struct {
 func NewGentleOffTime() *gentleOffTime {
 	c := characteristic.NewInt("113")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Gentle Off Time"
+	c.SetMinValue(0)
+	c.SetMaxValue(100000)
 	c.SetValue(0)
 
 	return &gentleOffTime{c}
@@ -119,6 +125,7 @@ func NewRampRate() *rampRate {
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Ramp Rate"
+	c.SetMinValue(0)
 	c.SetValue(0)
 
 	return &rampRate{c}
@@ -133,6 +140,8 @@ func NewMinThreshold() *minThreshold {
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Min Threshold"
+	c.SetMinValue(0)
+	c.SetMaxValue(100)
 	c.SetValue(0)
 
 	return &minThreshold{c}

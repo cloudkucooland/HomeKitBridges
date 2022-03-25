@@ -25,7 +25,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	acc.A = accessory.New(info, accessory.TypeLightbulb)
 	acc.finalize()
 
-	acc.Lightbulb = NewHS220Svc()
+	acc.Lightbulb = NewHS220Svc(ip)
 	acc.AddS(acc.Lightbulb.S)
 
 	acc.Lightbulb.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
@@ -59,10 +59,45 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 		acc.Lightbulb.RemainingDuration.SetValue(when)
 	})
 
-	// TODO ADD handlers for dimmer parameters
+	acc.Lightbulb.FadeOnTime.OnValueRemoteUpdate(func(when int) {
+		log.Info.Printf("setting fade on time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		kd, _ := kasa.NewDevice(acc.ip.String())
+		if err := kd.SetFadeOnTime(when); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+	})
+
+	acc.Lightbulb.FadeOffTime.OnValueRemoteUpdate(func(when int) {
+		log.Info.Printf("setting fade off time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		kd, _ := kasa.NewDevice(acc.ip.String())
+		if err := kd.SetFadeOffTime(when); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+	})
+
+	acc.Lightbulb.GentleOnTime.OnValueRemoteUpdate(func(when int) {
+		log.Info.Printf("setting gentle on time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		kd, _ := kasa.NewDevice(acc.ip.String())
+		if err := kd.SetGentleOnTime(when); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+	})
+
+	acc.Lightbulb.GentleOffTime.OnValueRemoteUpdate(func(when int) {
+		log.Info.Printf("setting gentle off time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		kd, _ := kasa.NewDevice(acc.ip.String())
+		if err := kd.SetGentleOffTime(when); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+	})
 
 	acc.AddS(acc.BridgingState.S)
 	acc.BridgingState.Reachable.SetValue(true)
+	acc.BridgingState.Category.SetValue(5) // lighting
 
 	return &acc
 }
@@ -85,7 +120,7 @@ type HS220Svc struct {
 	MinThreshold  *minThreshold
 }
 
-func NewHS220Svc() *HS220Svc {
+func NewHS220Svc(ip net.IP) *HS220Svc {
 	svc := HS220Svc{}
 	svc.S = service.New(service.TypeLightbulb)
 
@@ -108,29 +143,34 @@ func NewHS220Svc() *HS220Svc {
 
 	svc.FadeOnTime = NewFadeOnTime()
 	svc.AddC(svc.FadeOnTime.C)
-	svc.FadeOnTime.SetValue(1000)
 
 	svc.FadeOffTime = NewFadeOffTime()
 	svc.AddC(svc.FadeOffTime.C)
-	svc.FadeOffTime.SetValue(1000)
 
 	svc.GentleOnTime = NewGentleOnTime()
 	svc.AddC(svc.GentleOnTime.C)
-	svc.GentleOnTime.SetValue(1000)
 
-	svc.GentleOnTime = NewGentleOnTime()
-	svc.AddC(svc.GentleOnTime.C)
-	svc.GentleOnTime.SetValue(3000)
+	svc.GentleOffTime = NewGentleOffTime()
+	svc.AddC(svc.GentleOffTime.C)
 
 	svc.RampRate = NewRampRate()
-	// svc.AddC(svc.RampRate.C)
-	svc.RampRate.SetValue(30)
+	// svc.AddC(svc.RampRate.C) // nope
 
 	svc.MinThreshold = NewMinThreshold()
-	// svc.AddC(svc.MinThreshold.C)
-	svc.MinThreshold.SetValue(10)
+	// svc.AddC(svc.MinThreshold.C) // nope
 
-	// {"smartlife.iot.dimmer":{"get_dimmer_parameters":{"fadeOnTime":1000,"fadeOffTime":1000,"gentleOnTime":3000,"gentleOffTime":10000,"rampRate":30,"minThreshold":23,"bulb_type":1,"err_code":0}}}
+	k, _ := kasa.NewDevice(ip.String())
+	dimmer, err := k.GetDimmerParameters()
+	if err != nil {
+		return &svc
+	}
+
+	svc.FadeOnTime.SetValue(int(dimmer.FadeOnTime))
+	svc.FadeOffTime.SetValue(int(dimmer.FadeOffTime))
+	svc.GentleOnTime.SetValue(int(dimmer.GentleOnTime))
+	svc.GentleOffTime.SetValue(int(dimmer.GentleOffTime))
+	svc.RampRate.SetValue(int(dimmer.RampRate))
+	svc.MinThreshold.SetValue(int(dimmer.MinThreshold))
 
 	return &svc
 }

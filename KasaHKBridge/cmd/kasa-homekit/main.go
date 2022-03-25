@@ -64,6 +64,7 @@ func main() {
 			for {
 				hapctx, hapcancel := context.WithCancel(context.Background())
 				devices := kasahkbridge.Devices()
+				// kasahkbridge.BridgeAddState()
 				log.Info.Printf("serving %d kasa devices", len(devices))
 				s, err := hap.NewServer(hap.NewFsStore(fulldir), bridge, devices...)
 				if err != nil {

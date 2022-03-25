@@ -32,7 +32,7 @@ func NewBridgingState() *bstate {
 	bs.AccessoryIdentifier.Description = "AccessoryIdentifier"
 	bs.S.AddC(bs.AccessoryIdentifier.C)
 
-	bs.Category = characteristic.NewCategory() // 1-16
+	bs.Category = characteristic.NewCategory()
 	bs.Category.Description = "Category"
 	bs.S.AddC(bs.Category.C)
 

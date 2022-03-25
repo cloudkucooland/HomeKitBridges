@@ -7,9 +7,11 @@ import (
 	// "github.com/brutella/hap/service"
 )
 
+var root *accessory.Bridge
+
 // Bridge is used by the startup to build the generic bridge type on which all other devices hang
 func Bridge() *accessory.A {
-	root := accessory.NewBridge(accessory.Info{
+	root = accessory.NewBridge(accessory.Info{
 		Name:         "KasaHomekitBridge",
 		SerialNumber: "1101",
 		Manufacturer: "cloudkucooland",
@@ -19,4 +21,10 @@ func Bridge() *accessory.A {
 	root.A.Id = 1
 
 	return root.A
+}
+
+func BridgeAddState() {
+	for _, k := range kasas {
+		root.A.AddS(k.getBstate().S)
+	}
 }

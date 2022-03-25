@@ -2,6 +2,7 @@ package kasahkbridge
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net"
 	"time"
 
@@ -54,7 +55,6 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 	}
 
 	g.BridgingState = NewBridgingState()
-	g.BridgingState.AccessoryIdentifier.SetValue(k.DeviceID)
 
 	return info
 }
@@ -75,7 +75,9 @@ func id(g *generic) uint64 {
 
 func (g *generic) finalize() {
 	// set the ID so the device remains consistent in homekit across reboots
-	g.A.Id = id(g)
+	i := id(g)
+	g.A.Id = i
+	g.BridgingState.AccessoryIdentifier.SetValue(fmt.Sprintf("%d", i))
 
 	// add handler: if the device is renamed in homekit, update the device's internal name to match
 	g.A.Info.Name.OnValueRemoteUpdate(func(newname string) {
@@ -139,4 +141,8 @@ func kpm2hpm(kasaMode string) int {
 		i = characteristic.ProgramModeNoProgramScheduled
 	}
 	return i
+}
+
+func (g *generic) getBstate() *bstate {
+	return g.BridgingState
 }
