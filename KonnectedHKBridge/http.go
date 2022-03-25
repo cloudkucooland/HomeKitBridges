@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"time"
 
@@ -14,15 +15,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// handler is registered with the HTTP platform
-// it listens for Konnected devices and respond appropriately
+// handler listens for Konnected devices and respond appropriately
 // if the board doesn't get a 200 in response, it retries, and failing several retries, it reboots
 // we will just say OK no matter what for now
 func handler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	device := vars["device"]
 
-	k := chooseKonnected(device) // if remote addr differes from expected, update?
+	k := chooseKonnected(device)
 	if k == nil {
 		log.Info.Printf("Unknown device: %s %+v", device, r)
 		fmt.Fprint(w, `{ "status": "OK" }`)
@@ -46,6 +46,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// if remote addr differes from expected, update?
+	remHost, _, _ := net.SplitHostPort(r.RemoteAddr)
+	setHost, setPort, _ := net.SplitHostPort(k.ip)
+	if remHost != setHost {
+		log.Info.Printf("need to update IP address to  %s from %s (port: %s)", remHost, setHost, setPort)
+		k.ip = fmt.Sprintf("%s:%s", remHost, setPort)
+
+		// if the device wasn't discovered on boot, the port will be garbage, re-discover
+		if k.A.Info.FirmwareRevision.Value() == "bootstrap" {
+			ip := discover(device)
+			if ip != "" {
+				log.Info.Printf("rediscovery: (%s) got: (%s)", device, ip)
+				k.ip = ip
+				if err := k.getStatusAndUpdate(); err != nil {
+					log.Info.Println(err.Error())
+				}
+			} else {
+				log.Info.Println("rediscovery failed: still in bootstrap mode, try rebooting the hardware")
+			}
+		}
+	}
+
 	jBlob, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Info.Printf("konnected: unable to read update: %s", err.Error())
@@ -59,8 +81,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		// acknowledge the notice so it doesn't retransmit
 		fmt.Fprint(w, `{ "status": "OK" }`)
 		// trigger a manual pull
-		err := k.getStatusAndUpdate()
-		if err != nil {
+		if err := k.getStatusAndUpdate(); err != nil {
 			log.Info.Println(err.Error())
 		}
 		return
