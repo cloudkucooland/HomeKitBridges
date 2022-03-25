@@ -13,12 +13,20 @@ func discover(mac string) string {
 
 	devices, err := goupnp.DiscoverDevices(ssdp.SSDPAll)
 	if err != nil {
+		log.Info.Println("discovery failed: ", err.Error())
 		return ""
 	}
 
 	// XXX TODO make sure the mac is correct
 	for _, device := range devices {
 		if !strings.Contains(device.USN, "konnected") {
+			continue
+		}
+
+		log.Info.Printf("%+v", device)
+
+		if device.Root == nil {
+			log.Info.Printf("odd format : %+v", device.Root)
 			continue
 		}
 
