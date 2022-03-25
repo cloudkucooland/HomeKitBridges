@@ -76,7 +76,7 @@ func main() {
 			}
 
 			// push the config into HomeKit server
-            s, err := hap.NewServer(hap.NewFsStore(fulldir), devices[0], devices[1:]...)
+			s, err := hap.NewServer(hap.NewFsStore(fulldir), devices[0], devices[1:]...)
 			if err != nil {
 				log.Info.Panic(err)
 			}

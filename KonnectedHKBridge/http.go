@@ -19,8 +19,6 @@ import (
 // if the board doesn't get a 200 in response, it retries, and failing several retries, it reboots
 // we will just say OK no matter what for now
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Info.Printf("konnected: %+v", r)
-
 	vars := mux.Vars(r)
 	device := vars["device"]
 
@@ -30,8 +28,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{ "status": "OK" }`)
 		return
 	}
-
-	log.Info.Printf("konnected state for device (%s / %s)", r.RemoteAddr, device)
 
 	// verify token, if set in local config
 	if k.password != "" {
@@ -52,7 +48,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	jBlob, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Info.Printf("konnected: unable to read update")
+		log.Info.Printf("konnected: unable to read update: %s", err.Error())
 		// http.Error(w, `{ "status": "bad" }`, http.StatusInternalServerError)
 		fmt.Fprint(w, `{ "status": "OK" }`)
 		return
@@ -71,7 +67,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var p sensor
-	// log.Info.Printf("sent from %+v: %s", a.Name, string(jBlob))
+	log.Info.Printf("sent from %s %s: %s", device, r.RemoteAddr, string(jBlob))
 	err = json.Unmarshal(jBlob, &p)
 	if err != nil {
 		log.Info.Printf("konnected: unable to understand update")
@@ -90,7 +86,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			case characteristic.SecuritySystemCurrentStateDisarmed:
 				// nothing
 			case characteristic.SecuritySystemCurrentStateStayArm:
-				// k.doorchirps()
+				// nothing
 			default:
 				// for now we won't do anything since the cats trip it
 				log.Info.Printf("motion detected while alarm armed; pin: %d", p.Pin)
@@ -115,7 +111,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 			log.Info.Printf("%s: %s", svc.(*KonnectedContactSensor).Name.Value(), state)
 		case *KonnectedBuzzer: // not used
-			svc.(*KonnectedBuzzer).Active.SetValue(int(p.State))
+			log.Info.Printf("%s: %s", svc.(*KonnectedBuzzer).Name.Value(), p.State)
+			// svc.(*KonnectedBuzzer).Beeper.SetValue(int(p.State))
 		default:
 			log.Info.Println("bad type in handler: %+v", svc)
 			k.doorchirps()

@@ -241,7 +241,7 @@ func Background() {
 func (k *Konnected) beep() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
-		k.doBuzz(`"state":1, "momentary":120, "times":2, "pause":55`, characteristic.ActiveInactive)
+		k.doBuzz(`"state":1, "momentary":120, "times":2, "pause":55`)
 	} else {
 		log.Info.Println("not beeping since in triggered state")
 	}
@@ -250,7 +250,7 @@ func (k *Konnected) beep() {
 func (k *Konnected) doorchirps() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
-		k.doBuzz(`"state":1, "momentary":10, "times":5, "pause":30`, characteristic.ActiveInactive)
+		k.doBuzz(`"state":1, "momentary":10, "times":5, "pause":30`)
 	} else {
 		log.Info.Println("not doing chirps since in triggered state")
 	}
@@ -259,7 +259,7 @@ func (k *Konnected) doorchirps() {
 func (k *Konnected) instantAlarm() {
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateAlarmTriggered)
 	log.Info.Println("sending alarm")
-	k.doBuzz(`"state":1`, characteristic.ActiveActive)
+	k.doBuzz(`"state":1`)
 
 	// notify noonlight
 
@@ -279,7 +279,7 @@ func (k *Konnected) countdownAlarm() {
 	log.Info.Println("starting countdown")
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateAlarmTriggered)
 
-	k.doBuzz(`"state":1, "momentary":50, "pause":450`, characteristic.ActiveInactive)
+	k.doBuzz(`"state":1, "momentary":50, "pause":450`)
 
 	go func() {
 		select {
@@ -291,17 +291,15 @@ func (k *Konnected) countdownAlarm() {
 	}()
 }
 
-func (a *Konnected) getBuzzerPin() uint8 {
-	// TBD do the work...
-	return 8
-}
-
-func (k *Konnected) getBuzzer() *KonnectedBuzzer {
-	pin := k.getBuzzerPin()
-	if svc, ok := k.pins[pin]; ok {
-		return svc.(*KonnectedBuzzer)
+func (k *Konnected) getBuzzerPin() (uint8, *KonnectedBuzzer) {
+	for pid, pin := range k.pins {
+		switch pin.(type) {
+		case *KonnectedBuzzer:
+			return pid, pin.(*KonnectedBuzzer)
+		default:
+		}
 	}
-	return nil
+	return 0, nil
 }
 
 func (k *Konnected) cancelAlarm() {
@@ -311,17 +309,18 @@ func (k *Konnected) cancelAlarm() {
 		return
 	}
 
-	k.doBuzz(`"state": 0`, characteristic.ActiveInactive)
+	k.doBuzz(`"state": 0`)
 	disarmed <- true
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateDisarmed)
 }
 
-func (k *Konnected) doBuzz(cmd string, hcstate int) error {
-	if buzzer := k.getBuzzer(); buzzer != nil {
-		buzzer.Active.SetValue(hcstate)
+func (k *Konnected) doBuzz(cmd string) error {
+	pin, _ := k.getBuzzerPin()
+
+	if pin == 0 {
+		return nil
 	}
 
-	pin := k.getBuzzerPin()
 	url := fmt.Sprintf("http://%s/device", k.ip)
 	fullcmd := fmt.Sprintf("{\"pin\":%d, %s}", pin, cmd)
 	_, err := doRequest("PUT", url, bytes.NewBuffer([]byte(fullcmd)))

@@ -54,11 +54,15 @@ func NewKonnected(details *system, d *Device) *Konnected {
 			acc.pins[v.Pin] = p
 			acc.A.AddS(p.S)
 			log.Info.Printf("Konnected Pin: %d: %s (contact)", v.Pin, v.Name)
-		case "buzzer": // not used
+		case "buzzer":
 			p := NewKonnectedBuzzer(v.Name)
 			acc.pins[v.Pin] = p
 			acc.A.AddS(p.S)
 			log.Info.Printf("Konnected Pin: %d: %s (buzzer)", v.Pin, v.Name)
+			p.Beeper.OnValueRemoteUpdate(func(on bool) {
+				log.Info.Printf("beeping: %t", on)
+				// doBeep()
+			})
 		case "unused": // not used
 		default:
 			log.Info.Println("unknown KonnectedZone type: %+v", v)
@@ -74,7 +78,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 			case *KonnectedMotionSensor:
 				p.(*KonnectedMotionSensor).MotionDetected.SetValue(v.State == 1)
 			case *KonnectedBuzzer:
-				p.(*KonnectedBuzzer).Active.SetValue(int(v.State))
+				// p.(*KonnectedBuzzer).Beeper.SetValue(v.State == 1)
 			default:
 				log.Info.Println("unknown konnected device type")
 			}
@@ -190,20 +194,34 @@ type KonnectedBuzzer struct {
 	*service.S
 
 	Name   *characteristic.Name
-	Active *characteristic.Active
+	Beeper *beeper
 }
 
 func NewKonnectedBuzzer(name string) *KonnectedBuzzer {
 	svc := KonnectedBuzzer{}
-	svc.S = service.New("FF") // custom
+	svc.S = service.New("EE") // custom
 
 	svc.Name = characteristic.NewName()
 	svc.Name.SetValue(name)
 	svc.AddC(svc.Name.C)
 
-	svc.Active = characteristic.NewActive()
-	svc.Active.SetValue(characteristic.ActiveInactive)
-	svc.AddC(svc.Active.C)
+	svc.Beeper = NewBeeper()
+	svc.Beeper.Description = "Buzzer"
+	svc.Beeper.SetValue(false)
 
 	return &svc
+}
+
+type beeper struct {
+	*characteristic.Bool
+}
+
+func NewBeeper() *beeper {
+	c := characteristic.NewBool("EE1")
+	c.Format = characteristic.FormatBool
+
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
+	c.SetValue(false)
+
+	return &beeper{c}
 }
