@@ -197,6 +197,7 @@ func NewKonnectedMotionSensor(name string) *KonnectedMotionSensor {
 	return &svc
 }
 
+// XXX change these to switches instead of bare bools - use standard types for easier use in HomeKit automation
 type KonnectedBuzzer struct {
 	*service.S
 

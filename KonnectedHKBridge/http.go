@@ -88,7 +88,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var p sensor
-	log.Info.Printf("sent from %s %s: %s", device, r.RemoteAddr, string(jBlob))
+	// log.Info.Printf("sent from %s %s: %s", device, r.RemoteAddr, string(jBlob))
 	err = json.Unmarshal(jBlob, &p)
 	if err != nil {
 		log.Info.Printf("konnected: unable to understand update")

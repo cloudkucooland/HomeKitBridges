@@ -10,7 +10,7 @@ import (
 
 type Config struct {
 	Pin        string // HomeKit setup pin (80899303)
-	ListenAddr string // ip:port we listen on for updates from konnected devices (:8999)
+	ListenAddr string // ip:port we listen on for updates from konnected devices (192.168.1.2:8999)
 	Devices    []Device
 }
 
@@ -32,29 +32,40 @@ type Zone struct {
 func LoadConfig(filename string) (*Config, error) {
 	conf := Config{
 		Pin:        "80899303",
-		ListenAddr: "192.168.1.2:8999",
+		ListenAddr: "",
 	}
 
 	confFile, err := os.Open(filename)
 	if err != nil {
-		log.Info.Printf("unable to open config %s: using defaults (%+v)", filename, conf)
-		return &conf, nil
+		log.Info.Printf("%s\nunable to open config %s: using defaults\n%+v", err.Error(), filename, conf)
+		return &conf, err
 	}
+	defer confFile.Close()
 
 	raw, err := ioutil.ReadAll(confFile)
 	if err != nil {
-		log.Info.Printf(err.Error())
-		return nil, err
+		log.Info.Printf("%s\nunable to read config %s: using defaults\n%+v", err.Error(), filename, conf)
+		return &conf, err
 	}
-	confFile.Close()
-	// log.Info.Printf(string(raw))
 
 	err = json.Unmarshal(raw, &conf)
 	if err != nil {
-		log.Info.Printf(err.Error(), string(raw))
-		return nil, err
+		log.Info.Printf("%s\nunable to parse config %s: using defaults\nraw: %s\n%+v", err.Error(), filename, string(raw), conf)
+		return &conf, err
 	}
+
+	// if not statically configured, auto-discover
+	if conf.ListenAddress == "" {
+		conf.ListenAddress = getListenAddress()
+	}
+
 	log.Info.Printf("using config: %+v", conf)
 
 	return &conf, nil
+}
+
+// XXX todo
+func getListenAddress() string {
+	log.Info.Println("discovering local listen address")
+	return "192.168.1.2:8999"
 }
