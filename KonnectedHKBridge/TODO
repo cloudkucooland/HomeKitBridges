@@ -1,1 +1,0 @@
-switch to go-chi from gorilla/mux since that's what HAP uses -- one fewer dependency
