@@ -12,20 +12,27 @@ import (
 	"github.com/brutella/hap/characteristic"
 	"github.com/brutella/hap/log"
 
-	"github.com/gorilla/mux"
+	// use go-chi since it is what hap uses, no need for multiple
+	"github.com/go-chi/chi"
 )
+
+const jsonOK = `{ "status": "OK" }`
 
 // handler listens for Konnected devices and respond appropriately
 // if the board doesn't get a 200 in response, it retries, and failing several retries, it reboots
 // we will just say OK no matter what for now
 func handler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	device := vars["device"]
+	device := chi.URLParam(r, "device")
+	if device == "" {
+		log.Info.Printf("device unset: %+v", r)
+		fmt.Fprint(w, jsonOK)
+		return
+	}
 
 	k := chooseKonnected(device)
 	if k == nil {
 		log.Info.Printf("Unknown device: %s %+v", device, r)
-		fmt.Fprint(w, `{ "status": "OK" }`)
+		fmt.Fprint(w, jsonOK)
 		return
 	}
 
@@ -35,13 +42,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		if sentToken == "" {
 			log.Info.Printf("Authorization token not sent")
 			// http.Error(w, `{ "status": "bad" }`, http.StatusForbidden)
-			fmt.Fprint(w, `{ "status": "OK" }`)
+			fmt.Fprint(w, jsonOK)
 			return
 		}
 		if sentToken[7:] != k.password {
 			log.Info.Printf("Authorization token invalid")
 			// http.Error(w, `{ "status": "bad" }`, http.StatusForbidden)
-			fmt.Fprint(w, `{ "status": "OK" }`)
+			fmt.Fprint(w, jsonOK)
 			return
 		}
 	}
@@ -72,14 +79,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Info.Printf("konnected: unable to read update: %s", err.Error())
 		// http.Error(w, `{ "status": "bad" }`, http.StatusInternalServerError)
-		fmt.Fprint(w, `{ "status": "OK" }`)
+		fmt.Fprint(w, jsonOK)
 		return
 	}
 	// if konnected provisioned with a trailing / on the url..
 	if string(jBlob) == "" {
 		log.Info.Printf("konnected: sent empty message")
 		// acknowledge the notice so it doesn't retransmit
-		fmt.Fprint(w, `{ "status": "OK" }`)
+		fmt.Fprint(w, jsonOK)
 		// trigger a manual pull
 		if err := k.getStatusAndUpdate(); err != nil {
 			log.Info.Println(err.Error())
@@ -93,7 +100,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Info.Printf("konnected: unable to understand update")
 		// http.Error(w, `{ "status": "bad" }`, http.StatusNotAcceptable)
-		fmt.Fprint(w, `{ "status": "OK" }`)
+		fmt.Fprint(w, jsonOK)
 		return
 	}
 
@@ -106,8 +113,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
 			case characteristic.SecuritySystemCurrentStateDisarmed:
 				// nothing
+				// log.Info.Printf("%s: %s", svc.(*KonnectedMotionSensor).Name.Value(), p.State)
 			case characteristic.SecuritySystemCurrentStateStayArm:
 				// nothing
+				// log.Info.Printf("%s: %s", svc.(*KonnectedMotionSensor).Name.Value(), p.State)
 			default:
 				// for now we won't do anything since the cats trip it
 				log.Info.Printf("motion detected while alarm armed; pin: %d", p.Pin)
@@ -139,19 +148,21 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			k.doorchirps()
 		}
 	}
-	fmt.Fprint(w, `{ "status": "OK" }`)
+	fmt.Fprint(w, jsonOK)
 }
 
 func HTTPServer(ctx context.Context, addr string) {
-	router := mux.NewRouter()
+	router := chi.NewRouter()
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		// do something better here
+		w.Write([]byte("Konnected HomeKit Bridge"))
+	})
 
-	router.HandleFunc("", handler)
-	router.HandleFunc("{device}", handler)
-	router.HandleFunc("/{device}", handler)
-	router.HandleFunc("/konnected", handler)
-	router.HandleFunc("/konnected/{device}", handler)
-	router.HandleFunc("/konnected/device/{device}", handler)
-	router.NotFoundHandler = http.HandlerFunc(handler)
+	router.Route("/konnected/device/{device}", func(r chi.Router) {
+		r.Get("/", handler)
+		r.Put("/", handler)
+		r.Post("/", handler)
+	})
 
 	srv := &http.Server{
 		Handler:      router,

@@ -55,8 +55,8 @@ func LoadConfig(filename string) (*Config, error) {
 	}
 
 	// if not statically configured, auto-discover
-	if conf.ListenAddress == "" {
-		conf.ListenAddress = getListenAddress()
+	if conf.ListenAddr == "" {
+		conf.ListenAddr = getListenAddress()
 	}
 
 	log.Info.Printf("using config: %+v", conf)
