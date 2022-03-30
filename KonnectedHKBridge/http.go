@@ -141,7 +141,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 			log.Info.Printf("%s: %s", svc.(*KonnectedContactSensor).Name.Value(), state)
 		case *KonnectedBuzzer: // not used
-			log.Info.Printf("%s: %s", svc.(*KonnectedBuzzer).Name.Value(), p.State)
+			log.Info.Printf("%s: %s", svc.(*KonnectedBuzzer).Switch.Name.Value(), p.State)
 			// svc.(*KonnectedBuzzer).Beeper.SetValue(int(p.State))
 		default:
 			log.Info.Println("bad type in handler: %+v", svc)

@@ -2,6 +2,7 @@ package konnectedkhbridge
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -15,7 +16,8 @@ type Konnected struct {
 	password       string
 	pins           map[uint8]interface{}
 	SecuritySystem *KonnectedSvc
-	Trigger        *KonnectedExternalAlarm
+	Buzzer         *KonnectedBuzzer
+	Trigger        *KonnectedTrigger
 }
 
 func NewKonnected(details *system, d *Device) *Konnected {
@@ -59,11 +61,18 @@ func NewKonnected(details *system, d *Device) *Konnected {
 		case "buzzer":
 			p := NewKonnectedBuzzer(v.Name)
 			acc.pins[v.Pin] = p
-			p.Beeper.OnValueRemoteUpdate(func(on bool) {
-				log.Info.Printf("beeping: %t", on)
-				// doBeep()
-			})
-			acc.A.AddS(p.S)
+			acc.Buzzer = p
+				p.Switch.On.OnValueRemoteUpdate(func(on bool) {
+					log.Info.Printf("beeping: %t", on)
+                    if !on {
+                        return
+                    }
+					go func() {
+						acc.beep()
+						time.Sleep(1 * time.Second)
+						p.Switch.On.SetValue(!on)
+					}()
+				})
 			log.Info.Printf("Konnected Pin: %d: %s (buzzer)", v.Pin, v.Name)
 		case "unused": // not used
 		default:
@@ -78,9 +87,9 @@ func NewKonnected(details *system, d *Device) *Konnected {
 			case *KonnectedContactSensor:
 				p.(*KonnectedContactSensor).ContactSensorState.SetValue(int(v.State))
 			case *KonnectedMotionSensor:
-				p.(*KonnectedMotionSensor).MotionDetected.SetValue(v.State == 1)
+				p.(*KonnectedMotionSensor).MotionDetected.SetValue(false)
 			case *KonnectedBuzzer:
-				// p.(*KonnectedBuzzer).Beeper.SetValue(v.State == 1)
+				p.(*KonnectedBuzzer).Switch.On.SetValue(false)
 			default:
 				log.Info.Println("unknown konnected device type")
 			}
@@ -127,8 +136,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 		}
 	})
 
-	acc.Trigger = NewKonnectedExternalAlarm()
-	acc.A.AddS(acc.Trigger.S)
+	acc.Trigger = NewKonnectedTrigger()
 	acc.Trigger.ExternalTrigger.OnValueRemoteUpdate(func(newval bool) {
 		log.Info.Println("externally triggered alarm")
 	})
@@ -143,16 +151,16 @@ type KonnectedSvc struct {
 }
 
 func NewKonnectedSvc() *KonnectedSvc {
-	svc := KonnectedSvc{}
-	svc.S = service.New(service.TypeSecuritySystem)
+	s := KonnectedSvc{}
+	s.S = service.New(service.TypeSecuritySystem)
 
-	svc.SecuritySystemCurrentState = characteristic.NewSecuritySystemCurrentState()
-	svc.AddC(svc.SecuritySystemCurrentState.C)
+	s.SecuritySystemCurrentState = characteristic.NewSecuritySystemCurrentState()
+	s.AddC(s.SecuritySystemCurrentState.C)
 
-	svc.SecuritySystemTargetState = characteristic.NewSecuritySystemTargetState()
-	svc.AddC(svc.SecuritySystemTargetState.C)
+	s.SecuritySystemTargetState = characteristic.NewSecuritySystemTargetState()
+	s.AddC(s.SecuritySystemTargetState.C)
 
-	return &svc
+	return &s
 }
 
 type KonnectedContactSensor struct {
@@ -163,17 +171,17 @@ type KonnectedContactSensor struct {
 }
 
 func NewKonnectedContactSensor(name string) *KonnectedContactSensor {
-	svc := KonnectedContactSensor{}
-	svc.S = service.New(service.TypeContactSensor)
+	s := KonnectedContactSensor{}
+	s.S = service.New(service.TypeContactSensor)
 
-	svc.ContactSensorState = characteristic.NewContactSensorState()
-	svc.AddC(svc.ContactSensorState.C)
+	s.ContactSensorState = characteristic.NewContactSensorState()
+	s.AddC(s.ContactSensorState.C)
 
-	svc.Name = characteristic.NewName()
-	svc.Name.SetValue(name)
-	svc.AddC(svc.Name.C)
+	s.Name = characteristic.NewName()
+	s.Name.SetValue(name)
+	s.AddC(s.Name.C)
 
-	return &svc
+	return &s
 }
 
 type KonnectedMotionSensor struct {
@@ -184,77 +192,82 @@ type KonnectedMotionSensor struct {
 }
 
 func NewKonnectedMotionSensor(name string) *KonnectedMotionSensor {
-	svc := KonnectedMotionSensor{}
-	svc.S = service.New(service.TypeMotionSensor)
+	s := KonnectedMotionSensor{}
+	s.S = service.New(service.TypeMotionSensor)
 
-	svc.MotionDetected = characteristic.NewMotionDetected()
-	svc.AddC(svc.MotionDetected.C)
+	s.MotionDetected = characteristic.NewMotionDetected()
+	s.AddC(s.MotionDetected.C)
 
-	svc.Name = characteristic.NewName()
-	svc.Name.SetValue(name)
-	svc.AddC(svc.Name.C)
+	s.Name = characteristic.NewName()
+	s.Name.SetValue(name)
+	s.AddC(s.Name.C)
 
-	return &svc
+	return &s
 }
 
-// XXX change these to switches instead of bare bools - use standard types for easier use in HomeKit automation
 type KonnectedBuzzer struct {
-	*service.S
-
-	Name   *characteristic.Name
-	Beeper *beeper
+	*accessory.A
+	Switch *KonnectedBuzzerSvc
 }
 
 func NewKonnectedBuzzer(name string) *KonnectedBuzzer {
-	svc := KonnectedBuzzer{}
-	svc.S = service.New("EE") // custom
+	a := KonnectedBuzzer{}
+	a.A = accessory.New(accessory.Info{
+		Name:         "Buzzer",
+		SerialNumber: "0001",
+		Manufacturer: "Konnected HKB",
+		Model:        "Buzzer",
+		Firmware:     "0001",
+	}, accessory.TypeSwitch)
+	a.Switch = NewKonnectedBuzzerSvc(name)
+	a.AddS(a.Switch.S)
 
-	svc.Name = characteristic.NewName()
-	svc.Name.SetValue(name)
-	svc.AddC(svc.Name.C)
-
-	// allow external events to beeps
-	svc.Beeper = NewBeeper()
-	svc.Beeper.Description = "Buzzer"
-	// svc.Beeper.SetValue(false)
-	return &svc
+	return &a
 }
 
-type beeper struct {
-	*characteristic.Bool
+type KonnectedBuzzerSvc struct {
+	*service.S
+
+	On   *characteristic.On
+	Name *characteristic.Name
 }
 
-func NewBeeper() *beeper {
-	c := characteristic.NewBool("EE1")
-	c.Format = characteristic.FormatBool
+func NewKonnectedBuzzerSvc(name string) *KonnectedBuzzerSvc {
+	s := KonnectedBuzzerSvc{}
+	s.S = service.New(service.TypeSwitch)
 
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
+	s.On = characteristic.NewOn()
+	s.AddC(s.On.C)
 
-	return &beeper{c}
+	s.Name = characteristic.NewName()
+	s.Name.SetValue(name)
+	s.AddC(s.Name.C)
+
+	return &s
 }
 
-type KonnectedExternalAlarm struct {
+type KonnectedTrigger struct {
 	*service.S
 
 	// Name            *characteristic.Name
 	ExternalTrigger *etrigger
 }
 
-func NewKonnectedExternalAlarm() *KonnectedExternalAlarm {
-	svc := KonnectedExternalAlarm{}
-	svc.S = service.New("EF") // custom
+func NewKonnectedTrigger() *KonnectedTrigger {
+	s := KonnectedTrigger{}
+	s.S = service.New("EF") // custom
 
-	// svc.Name = characteristic.NewName()
-	// svc.Name.SetValue("External Trigger")
-	// svc.AddC(svc.Name.C)
+	// s.Name = characteristic.NewName()
+	// s.Name.SetValue("External Trigger")
+	// s.AddC(s.Name.C)
 
 	// allow external events to fire the alarm
-	svc.ExternalTrigger = NewExternalAlarmTrigger()
-	svc.ExternalTrigger.Description = "Trigger"
-	svc.ExternalTrigger.SetValue(false)
-	svc.AddC(svc.ExternalTrigger.C)
+	s.ExternalTrigger = NewExternalAlarmTrigger()
+	s.ExternalTrigger.Description = "Trigger"
+	s.ExternalTrigger.SetValue(false)
+	s.AddC(s.ExternalTrigger.C)
 
-	return &svc
+	return &s
 }
 
 type etrigger struct {

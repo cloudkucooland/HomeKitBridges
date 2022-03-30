@@ -134,6 +134,12 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 		// k.provision(details, &config, &d)
 		ks[d.Mac] = k
 		klist = append(klist, k.A)
+		if k.Buzzer != nil {
+			klist = append(klist, k.Buzzer.A)
+		}
+		// if k.Trigger != nil {
+		//    klist = append(klist, k.Trigger.A)
+		// }
 	}
 
 	return klist, nil
