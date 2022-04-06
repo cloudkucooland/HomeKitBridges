@@ -4,11 +4,11 @@ go 1.16
 
 require (
 	github.com/brutella/hap v0.0.14
-	github.com/cloudkucooland/go-kasa v0.0.0-20220324221805-9fa0fc10f582
-	github.com/miekg/dns v1.1.47 // indirect
+	github.com/cloudkucooland/go-kasa v0.0.0-20220405233113-c14c027787df
+	github.com/miekg/dns v1.1.48 // indirect
 	github.com/urfave/cli/v2 v2.4.0
-	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 // indirect
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
-	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
+	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
+	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
+	golang.org/x/sys v0.0.0-20220405210540-1e041c57c461 // indirect
 	golang.org/x/tools v0.1.10 // indirect
 )
