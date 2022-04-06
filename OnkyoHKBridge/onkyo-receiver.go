@@ -47,9 +47,9 @@ func NewOnkyoReceiver(info accessory.Info, dev *eiscp.Device) *OnkyoReceiver {
 
 	acc.Volume = characteristic.NewVolume()
 	acc.Volume.Description = "Master Volume"
-	/* acc.Volume.OnValueRemoteUpdate(func(newstate int) {
+	acc.Volume.OnValueRemoteUpdate(func(newstate int) {
 		log.Info.Printf("OnkyoReceiver: HC requested speaker volume: %d", newstate)
-	}) */
+	})
 	acc.Speaker.AddC(acc.Volume.C)
 
 	// acc.VolumeControlType = characteristic.NewVolumeControlType()
@@ -68,7 +68,7 @@ func NewOnkyoReceiver(info accessory.Info, dev *eiscp.Device) *OnkyoReceiver {
 	acc.Volume.OnValueRemoteUpdate(func(newstate int) {
 		log.Info.Printf("OnkyoReceiver: HC requested speaker active: %d", newstate)
 	})
-	// acc.Speaker.AddC(acc.VolumeActive.C)
+	acc.Speaker.AddC(acc.VolumeActive.C)
 
 	acc.Speaker.Mute.SetValue(false)
 	acc.Speaker.Mute.OnValueRemoteUpdate(func(newstate bool) {
@@ -83,8 +83,8 @@ func NewOnkyoReceiver(info accessory.Info, dev *eiscp.Device) *OnkyoReceiver {
 
 	acc.Temp.S.Primary = false
 	acc.AddS(acc.Temp.S)
-	// acc.Television.AddS(acc.Temp.S) // does this do anything? it doesn't seem to hurt...
-	// acc.Speaker.AddS(acc.Temp.S)    // does this do anything? it doesn't seem to hurt...
+	acc.Television.AddS(acc.Temp.S) // does this do anything? it doesn't seem to hurt...
+	acc.Speaker.AddS(acc.Temp.S)    // does this do anything? it doesn't seem to hurt...
 
 	acc.Sources = make(map[int]string)
 
@@ -159,8 +159,8 @@ func (t *OnkyoReceiver) AddInputs(nfi *eiscp.NRI) {
 		log.Info.Printf("adding input source: %+v", s)
 		is := service.NewInputSource()
 
-		// is.ConfiguredName.SetValue(s.Name)
-		// is.ConfiguredName.Description = "Name"
+		is.ConfiguredName.SetValue(s.Name)
+		is.ConfiguredName.Description = "Name"
 		is.ConfiguredName.SetValue(s.Name)
 		is.ConfiguredName.Description = "ConfiguredName"
 		inputSourceType := characteristic.InputSourceTypeHdmi
@@ -236,9 +236,9 @@ func (t *OnkyoReceiver) AddInputs(nfi *eiscp.NRI) {
 		// is.TargetVisibilityState.SetValue(newstate)  // not saved, but fine for now
 		// is.CurrentVisibilityState.SetValue(newstate) // not saved, but fine for now
 		// })
-		// is.IsConfigured.OnValueRemoteUpdate(func(newstate int) {
-		// log.Info.Printf("%s IsConfigured: %d", is.Name.GetValue(), newstate)
-		// })
+		is.IsConfigured.OnValueRemoteUpdate(func(newstate int) {
+			log.Info.Printf("%s IsConfigured: %d", is.ConfiguredName.Value(), newstate)
+		})
 		// is.Identifier.OnValueRemoteUpdate(func(newstate int) {
 		// log.Info.Printf("%s Identifier: %d", is.Name.GetValue(), newstate)
 		// })
@@ -271,9 +271,9 @@ func NewOnkyoReceiverSvc() *OnkyoReceiverSvc {
 
 	svc.On = characteristic.NewOn()
 	svc.AddC(svc.On.C)
-	/* svc.On.OnValueRemoteUpdate(func(newstate bool) {
+	svc.On.OnValueRemoteUpdate(func(newstate bool) {
 		log.Info.Printf("OnkyoReceiver: HC requested On: %t", newstate)
-	}) */
+	})
 
 	svc.Volume = characteristic.NewVolume()
 	svc.AddC(svc.Volume.C)
@@ -289,21 +289,21 @@ func NewOnkyoReceiverSvc() *OnkyoReceiverSvc {
 
 	svc.Active = characteristic.NewActive()
 	svc.AddC(svc.Active.C)
-	/* svc.Active.OnValueRemoteUpdate(func(newstate int) {
+	svc.Active.OnValueRemoteUpdate(func(newstate int) {
 		log.Info.Printf("OnkyoReceiver: HC requested Active: %d", newstate)
-	}) */
+	})
 
 	svc.ActiveIdentifier = characteristic.NewActiveIdentifier()
 	svc.AddC(svc.ActiveIdentifier.C)
-	/* svc.ActiveIdentifier.OnValueRemoteUpdate(func(newstate int) {
+	svc.ActiveIdentifier.OnValueRemoteUpdate(func(newstate int) {
 		log.Info.Printf("OnkyoReceiver: HC requested ActiveIdentifier: %d", newstate)
-	}) */
+	})
 
 	svc.ConfiguredName = characteristic.NewConfiguredName()
 	svc.AddC(svc.ConfiguredName.C)
-	/* svc.ActiveIdentifier.OnValueRemoteUpdate(func(newstate int) {
-		log.Info.Printf("OnkyoReceiver: HC requested ConfiguredName: %d", newstate)
-	}) */
+	svc.ConfiguredName.OnValueRemoteUpdate(func(newstate string) {
+		log.Info.Printf("OnkyoReceiver: HC requested ConfiguredName: %s", newstate)
+	})
 
 	svc.SleepDiscoveryMode = characteristic.NewSleepDiscoveryMode()
 	svc.AddC(svc.SleepDiscoveryMode.C)
@@ -327,7 +327,7 @@ func NewOnkyoReceiverSvc() *OnkyoReceiverSvc {
 	})
 
 	svc.CurrentMediaState = characteristic.NewCurrentMediaState()
-	// svc.CurrentMediaState.SetValue(characteristic.CurrentMediaStatePlay)
+	svc.CurrentMediaState.SetValue(characteristic.CurrentMediaStatePlay)
 	svc.AddC(svc.CurrentMediaState.C)
 
 	svc.TargetMediaState = characteristic.NewTargetMediaState()

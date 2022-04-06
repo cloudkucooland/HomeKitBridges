@@ -60,19 +60,19 @@ func NewKonnected(details *system, d *Device) *Konnected {
 			log.Info.Printf("Konnected Pin: %d: %s (contact)", v.Pin, v.Name)
 		case "buzzer":
 			p := NewKonnectedBuzzer(v.Name)
+			p.Switch.On.OnValueRemoteUpdate(func(on bool) {
+				log.Info.Printf("beeping: %t", on)
+				if !on {
+					return
+				}
+				go func() {
+					acc.beep()
+					time.Sleep(5 * time.Second)
+					p.Switch.On.SetValue(false)
+				}()
+			})
 			acc.pins[v.Pin] = p
 			acc.Buzzer = p
-				p.Switch.On.OnValueRemoteUpdate(func(on bool) {
-					log.Info.Printf("beeping: %t", on)
-                    if !on {
-                        return
-                    }
-					go func() {
-						acc.beep()
-						time.Sleep(1 * time.Second)
-						p.Switch.On.SetValue(!on)
-					}()
-				})
 			log.Info.Printf("Konnected Pin: %d: %s (buzzer)", v.Pin, v.Name)
 		case "unused": // not used
 		default:
@@ -89,7 +89,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 			case *KonnectedMotionSensor:
 				p.(*KonnectedMotionSensor).MotionDetected.SetValue(false)
 			case *KonnectedBuzzer:
-				p.(*KonnectedBuzzer).Switch.On.SetValue(false)
+				// p.(*KonnectedBuzzer).Switch.On.SetValue(false)
 			default:
 				log.Info.Println("unknown konnected device type")
 			}
@@ -137,8 +137,32 @@ func NewKonnected(details *system, d *Device) *Konnected {
 	})
 
 	acc.Trigger = NewKonnectedTrigger()
-	acc.Trigger.ExternalTrigger.OnValueRemoteUpdate(func(newval bool) {
-		log.Info.Println("externally triggered alarm")
+	acc.Trigger.Trigger.Trip.OnValueRemoteUpdate(func(targetState bool) {
+		if targetState {
+			log.Info.Println("externally triggered alarm")
+			switch acc.SecuritySystem.SecuritySystemCurrentState.Value() {
+			case characteristic.SecuritySystemCurrentStateAwayArm:
+				acc.countdownAlarm()
+			case characteristic.SecuritySystemCurrentStateNightArm,
+				characteristic.SecuritySystemCurrentStateStayArm:
+				acc.instantAlarm()
+			default:
+				acc.instantAlarm()
+			}
+
+		} else {
+			triggered := true
+			if acc.SecuritySystem.SecuritySystemCurrentState.Value() !=
+				characteristic.SecuritySystemCurrentStateAlarmTriggered {
+				triggered = false
+			}
+			if triggered {
+				log.Info.Println("clearing external alarm")
+				acc.cancelAlarm()
+			} else {
+				log.Info.Println("not triggered, nothing to clear")
+			}
+		}
 	})
 	return &acc
 }
@@ -213,7 +237,7 @@ type KonnectedBuzzer struct {
 func NewKonnectedBuzzer(name string) *KonnectedBuzzer {
 	a := KonnectedBuzzer{}
 	a.A = accessory.New(accessory.Info{
-		Name:         "Buzzer",
+		Name:         name,
 		SerialNumber: "0001",
 		Manufacturer: "Konnected HKB",
 		Model:        "Buzzer",
@@ -247,38 +271,40 @@ func NewKonnectedBuzzerSvc(name string) *KonnectedBuzzerSvc {
 }
 
 type KonnectedTrigger struct {
-	*service.S
+	*accessory.A
 
-	// Name            *characteristic.Name
-	ExternalTrigger *etrigger
+	Trigger *KonnectedTriggerSvc
 }
 
 func NewKonnectedTrigger() *KonnectedTrigger {
-	s := KonnectedTrigger{}
-	s.S = service.New("EF") // custom
+	a := KonnectedTrigger{}
 
-	// s.Name = characteristic.NewName()
-	// s.Name.SetValue("External Trigger")
-	// s.AddC(s.Name.C)
+	a.A = accessory.New(accessory.Info{
+		Name:         "Trigger",
+		SerialNumber: "0001",
+		Manufacturer: "Konnected HKB",
+		Model:        "Trigger",
+		Firmware:     "0001",
+	}, accessory.TypeSwitch)
 
-	// allow external events to fire the alarm
-	s.ExternalTrigger = NewExternalAlarmTrigger()
-	s.ExternalTrigger.Description = "Trigger"
-	s.ExternalTrigger.SetValue(false)
-	s.AddC(s.ExternalTrigger.C)
+	a.Trigger = NewKonnectedTriggerSvc()
+	a.AddS(a.Trigger.S)
+
+	return &a
+}
+
+type KonnectedTriggerSvc struct {
+	*service.S
+
+	Trip *characteristic.On
+}
+
+func NewKonnectedTriggerSvc() *KonnectedTriggerSvc {
+	s := KonnectedTriggerSvc{}
+	s.S = service.New(service.TypeSwitch)
+
+	s.Trip = characteristic.NewOn()
+	s.AddC(s.Trip.C)
 
 	return &s
-}
-
-type etrigger struct {
-	*characteristic.Bool
-}
-
-func NewExternalAlarmTrigger() *etrigger {
-	c := characteristic.NewBool("EF1")
-	c.Format = characteristic.FormatBool
-
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
-
-	return &etrigger{c}
 }

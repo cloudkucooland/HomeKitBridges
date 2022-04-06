@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	// "sync"
-	// "time"
 
 	"github.com/cloudkucooland/go-onkyo"
 
@@ -34,13 +32,13 @@ func DiscoverOnkyo(ctx context.Context, ip string) (*OnkyoReceiver, error) {
 		Model:        deets.Device.Model,
 		SerialNumber: deets.Device.DeviceSerial,
 		Firmware:     deets.Device.FirmwareVersion,
-		Name:         fmt.Sprintf("%s (%s)", deets.Device.Model, deets.Device.ZoneList.Zone[0].Name),
+		Name:         fmt.Sprintf("%s %s", deets.Device.Model, deets.Device.ZoneList.Zone[0].Name),
 	}
 
 	a := NewOnkyoReceiver(info, dev)
 
 	// add to HC for GUI
-	log.Info.Printf("Discovered %s %s", info.Name, info.Model)
+	log.Info.Printf("Discovered %s", info.Name)
 
 	a.Amp = dev
 	a.Television.ConfiguredName.SetValue(info.Name)
@@ -68,7 +66,8 @@ func DiscoverOnkyo(ctx context.Context, ip string) (*OnkyoReceiver, error) {
 		a.Television.ActiveIdentifier.SetValue(int(i))
 		// d.Television.ConfiguredName.SetValue(fmt.Sprintf("%s:%s", a.Info.Name, d.Sources[int(i)]))
 	}
-	/// NPS does not respond if powered off or not set to SLI network
+
+	// NPS does not respond if powered off or not set to SLI network
 	a.Television.CurrentMediaState.SetValue(characteristic.CurrentMediaStateUnknown)
 	if power && source == eiscp.SrcNetwork {
 		a.Amp.GetNetworkPlayStatus()
