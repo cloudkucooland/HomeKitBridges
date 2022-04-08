@@ -150,10 +150,10 @@ func NewHS220Svc(ip net.IP) *HS220Svc {
 	svc.AddC(svc.GentleOffTime.C)
 
 	svc.RampRate = NewRampRate()
-	// svc.AddC(svc.RampRate.C) // nope
+	svc.AddC(svc.RampRate.C) // nope
 
 	svc.MinThreshold = NewMinThreshold()
-	// svc.AddC(svc.MinThreshold.C) // nope
+	svc.AddC(svc.MinThreshold.C) // nope
 
 	k, _ := kasa.NewDevice(ip.String())
 	dimmer, err := k.GetDimmerParameters()

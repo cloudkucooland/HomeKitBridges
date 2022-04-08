@@ -4,12 +4,19 @@ import (
 	"github.com/brutella/hap/characteristic"
 )
 
+// use the same values as other bridges
+// https://github.com/plasticrake/homebridge-tplink-smarthome/blob/master/src/characteristics/amperes.ts
+// volt E863F10A-079E-48FF-8F27-9C2605A29F52
+// amps E863F126-079E-48FF-8F27-9C2605A29F52
+// watt E863F10D-079E-48FF-8F27-9C2605A29F52
+// kwh  E863F10C-079E-48FF-8F27-9C2605A29F52
+
 type volt struct {
 	*characteristic.Int
 }
 
 func NewVolt() *volt {
-	c := characteristic.NewInt("10A")
+	c := characteristic.NewInt("E863F10A")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Voltage"
@@ -23,7 +30,7 @@ type watt struct {
 }
 
 func NewWatt() *watt {
-	c := characteristic.NewInt("10D")
+	c := characteristic.NewInt("E863F10D")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Watts"
@@ -37,7 +44,7 @@ type amp struct {
 }
 
 func NewAmp() *amp {
-	c := characteristic.NewInt("10B") // 126
+	c := characteristic.NewInt("E863F126")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Current MA"
@@ -46,18 +53,20 @@ func NewAmp() *amp {
 	return &amp{c}
 }
 
-// https://github.com/plasticrake/homebridge-tplink-smarthome/blob/master/src/characteristics/amperes.ts
-// volt E863F10A-079E-48FF-8F27-9C2605A29F52
-// amps E863F126-079E-48FF-8F27-9C2605A29F52
-// watt E863F10D-079E-48FF-8F27-9C2605A29F52
-// kwh  E863F10C-079E-48FF-8F27-9C2605A29F52
+// custom to us
+// fade on       E8700110
+// fade off      E8700111
+// gentle on     E8700112
+// gentle of     E8700113
+// ramp rate     E8700114
+// min threshold E8700115
 
 type fadeOnTime struct {
 	*characteristic.Int
 }
 
 func NewFadeOnTime() *fadeOnTime {
-	c := characteristic.NewInt("110")
+	c := characteristic.NewInt("E8700110")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Fade On Time"
@@ -73,7 +82,7 @@ type fadeOffTime struct {
 }
 
 func NewFadeOffTime() *fadeOffTime {
-	c := characteristic.NewInt("111")
+	c := characteristic.NewInt("E8700111")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Fade Off Time"
@@ -89,7 +98,7 @@ type gentleOnTime struct {
 }
 
 func NewGentleOnTime() *gentleOnTime {
-	c := characteristic.NewInt("112")
+	c := characteristic.NewInt("E8700112")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Gentle On Time"
@@ -105,7 +114,7 @@ type gentleOffTime struct {
 }
 
 func NewGentleOffTime() *gentleOffTime {
-	c := characteristic.NewInt("113")
+	c := characteristic.NewInt("E8700113")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
 	c.Description = "Gentle Off Time"
@@ -121,9 +130,9 @@ type rampRate struct {
 }
 
 func NewRampRate() *rampRate {
-	c := characteristic.NewInt("114")
+	c := characteristic.NewInt("E8700114")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead}
 	c.Description = "Ramp Rate"
 	c.SetMinValue(0)
 	c.SetValue(0)
@@ -136,9 +145,9 @@ type minThreshold struct {
 }
 
 func NewMinThreshold() *minThreshold {
-	c := characteristic.NewInt("115")
+	c := characteristic.NewInt("E8700115")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead}
 	c.Description = "Min Threshold"
 	c.SetMinValue(0)
 	c.SetMaxValue(100)
