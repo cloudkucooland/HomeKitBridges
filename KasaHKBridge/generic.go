@@ -2,7 +2,6 @@ package kasahkbridge
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"time"
 
@@ -17,8 +16,6 @@ import (
 // included in all device types
 type generic struct {
 	*accessory.A
-
-	BridgingState *bstate
 
 	Sysinfo    kasa.Sysinfo
 	lastUpdate time.Time
@@ -38,7 +35,6 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
-	g.BridgingState.Reachable.SetValue(false)
 }
 
 func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
@@ -53,8 +49,6 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 		Model:        k.Model,
 		Firmware:     k.SWVersion,
 	}
-
-	g.BridgingState = NewBridgingState()
 
 	return info
 }
@@ -77,7 +71,6 @@ func (g *generic) finalize() {
 	// set the ID so the device remains consistent in homekit across reboots
 	i := id(g)
 	g.A.Id = i
-	g.BridgingState.AccessoryIdentifier.SetValue(fmt.Sprintf("%d", i))
 
 	// add handler: if the device is renamed in homekit, update the device's internal name to match
 	g.A.Info.Name.OnValueRemoteUpdate(func(newname string) {
@@ -106,7 +99,7 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
 
-	switch r := k.GetSysinfo.Sysinfo.RSSI; {
+	/* switch r := k.GetSysinfo.Sysinfo.RSSI; {
 	case r < -75:
 		g.BridgingState.LinkQuality.SetValue(0)
 	case r < -65:
@@ -118,10 +111,7 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 	case r > -35:
 		g.BridgingState.LinkQuality.SetValue(4)
 	}
-
-	if !g.BridgingState.Reachable.Value() {
-		g.BridgingState.Reachable.SetValue(true)
-	}
+	*/
 
 	g.lastUpdate = time.Now()
 }
@@ -141,8 +131,4 @@ func kpm2hpm(kasaMode string) int {
 		i = characteristic.ProgramModeNoProgramScheduled
 	}
 	return i
-}
-
-func (g *generic) getBstate() *bstate {
-	return g.BridgingState
 }

@@ -29,7 +29,6 @@ type kasaDevice interface {
 	update(kasa.KasaDevice, net.IP)
 	getLastUpdate() time.Time
 	unreachable()
-	getBstate() *bstate
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices

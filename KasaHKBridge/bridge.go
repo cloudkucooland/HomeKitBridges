@@ -22,9 +22,3 @@ func Bridge() *accessory.A {
 
 	return root.A
 }
-
-func BridgeAddState() {
-	for _, k := range kasas {
-		root.A.AddS(k.getBstate().S)
-	}
-}

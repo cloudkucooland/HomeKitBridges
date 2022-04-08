@@ -95,10 +95,6 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 		}
 	})
 
-	acc.AddS(acc.BridgingState.S)
-	acc.BridgingState.Reachable.SetValue(true)
-	acc.BridgingState.Category.SetValue(5) // lighting
-
 	return &acc
 }
 
