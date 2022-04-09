@@ -60,6 +60,7 @@ func NewAmp() *amp {
 // gentle of     E8700113
 // ramp rate     E8700114
 // min threshold E8700115
+// RSSI          E8700116
 
 type fadeOnTime struct {
 	*characteristic.Int
@@ -154,4 +155,20 @@ func NewMinThreshold() *minThreshold {
 	c.SetValue(0)
 
 	return &minThreshold{c}
+}
+
+type rssi struct {
+	*characteristic.Int
+}
+
+func NewRSSI() *rssi {
+	c := characteristic.NewInt("E8700116")
+	c.Format = characteristic.FormatInt32
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
+	c.Description = "RSSI"
+	c.SetMinValue(-100)
+	c.SetMaxValue(0)
+	c.SetValue(-50)
+
+	return &rssi{c}
 }

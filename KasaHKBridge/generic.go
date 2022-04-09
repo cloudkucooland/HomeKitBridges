@@ -8,7 +8,7 @@ import (
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
 	"github.com/brutella/hap/log"
-	// "github.com/brutella/hap/service"
+	"github.com/brutella/hap/service"
 
 	"github.com/cloudkucooland/go-kasa"
 )
@@ -17,17 +17,14 @@ import (
 type generic struct {
 	*accessory.A
 
-	Sysinfo    kasa.Sysinfo
-	lastUpdate time.Time
-	ip         net.IP // would probably be better to use string
+	Status     *statusSvc   // a service for displaying status info
+	Sysinfo    kasa.Sysinfo // contents of the last response from the device
+	lastUpdate time.Time    // last time the device responded (move to Status)
+	ip         net.IP       // would probably be better to use string
 }
 
 func (g *generic) getA() *accessory.A {
 	return g.A
-}
-
-func (g *generic) getName() string {
-	return g.Sysinfo.Alias
 }
 
 func (g *generic) getLastUpdate() time.Time {
@@ -35,6 +32,8 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
+	// figure out how to tell homekit that this device has gone away....
+	// probably under the bridge accessory
 }
 
 func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
@@ -85,6 +84,9 @@ func (g *generic) finalize() {
 			return
 		}
 	})
+
+	g.Status = NewStatusSvc()
+	// g.A.AddS(g.Status.S)
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
@@ -99,20 +101,7 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
 
-	/* switch r := k.GetSysinfo.Sysinfo.RSSI; {
-	case r < -75:
-		g.BridgingState.LinkQuality.SetValue(0)
-	case r < -65:
-		g.BridgingState.LinkQuality.SetValue(1)
-	case r < -55:
-		g.BridgingState.LinkQuality.SetValue(2)
-	case r < -35:
-		g.BridgingState.LinkQuality.SetValue(3)
-	case r > -35:
-		g.BridgingState.LinkQuality.SetValue(4)
-	}
-	*/
-
+	g.Status.RSSI.SetValue(int(k.GetSysinfo.Sysinfo.RSSI))
 	g.lastUpdate = time.Now()
 }
 
@@ -131,4 +120,25 @@ func kpm2hpm(kasaMode string) int {
 		i = characteristic.ProgramModeNoProgramScheduled
 	}
 	return i
+}
+
+type statusSvc struct {
+	*service.S
+
+	Name *characteristic.Name
+	RSSI *rssi
+}
+
+func NewStatusSvc() *statusSvc {
+	svc := statusSvc{}
+	svc.S = service.New("E881")
+
+	svc.Name = characteristic.NewName()
+	svc.Name.SetValue("Kasa Smart Status")
+	svc.S.AddC(svc.Name.C)
+
+	svc.RSSI = NewRSSI()
+	svc.S.AddC(svc.RSSI.C)
+
+	return &svc
 }

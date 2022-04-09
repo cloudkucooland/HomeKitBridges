@@ -25,7 +25,6 @@ var pollInterval time.Duration = 30
 
 type kasaDevice interface {
 	getA() *accessory.A
-	getName() string
 	update(kasa.KasaDevice, net.IP)
 	getLastUpdate() time.Time
 	unreachable()
