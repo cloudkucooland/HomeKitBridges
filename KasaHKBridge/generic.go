@@ -131,10 +131,10 @@ type statusSvc struct {
 
 func NewStatusSvc() *statusSvc {
 	svc := statusSvc{}
-	svc.S = service.New("E881")
+	svc.S = service.New("E871")
 
 	svc.Name = characteristic.NewName()
-	svc.Name.SetValue("Kasa Smart Status")
+	svc.Name.SetValue("Kasa Status")
 	svc.S.AddC(svc.Name.C)
 
 	svc.RSSI = NewRSSI()

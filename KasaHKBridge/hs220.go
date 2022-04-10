@@ -27,6 +27,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb = NewHS220Svc(ip)
 	acc.AddS(acc.Lightbulb.S)
+	acc.Lightbulb.AddS(acc.Status.S)
 
 	acc.Lightbulb.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	acc.Lightbulb.Brightness.SetValue(int(k.GetSysinfo.Sysinfo.Brightness))
@@ -167,6 +168,8 @@ func NewHS220Svc(ip net.IP) *HS220Svc {
 	svc.GentleOffTime.SetValue(int(dimmer.GentleOffTime))
 	svc.RampRate.SetValue(int(dimmer.RampRate))
 	svc.MinThreshold.SetValue(int(dimmer.MinThreshold))
+
+	svc.S.Primary = true
 
 	return &svc
 }

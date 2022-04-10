@@ -28,6 +28,7 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 
 	acc.Switch = NewHS200Svc()
 	acc.AddS(acc.Switch.S)
+	acc.Switch.AddS(acc.Status.S)
 
 	acc.Switch.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	pm := kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode)
@@ -81,6 +82,8 @@ func NewHS200Svc() *HS200Svc {
 	svc.RemainingDuration = characteristic.NewRemainingDuration()
 	svc.AddC(svc.RemainingDuration.C)
 	svc.RemainingDuration.SetValue(0)
+
+	svc.S.Primary = true
 
 	return &svc
 }

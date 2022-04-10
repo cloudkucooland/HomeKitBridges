@@ -27,6 +27,7 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 
 	acc.Outlet = NewHS103Svc()
 	acc.AddS(acc.Outlet.S)
+	acc.Outlet.AddS(acc.Status.S)
 
 	acc.Outlet.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	acc.Outlet.OutletInUse.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
@@ -87,6 +88,8 @@ func NewHS103Svc() *HS103Svc {
 	svc.RemainingDuration = characteristic.NewRemainingDuration()
 	svc.AddC(svc.RemainingDuration.C)
 	svc.RemainingDuration.SetValue(0)
+
+	svc.S.Primary = true
 
 	return &svc
 }
