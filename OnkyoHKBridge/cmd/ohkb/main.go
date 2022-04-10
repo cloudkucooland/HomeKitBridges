@@ -28,7 +28,7 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "dir",
-				Value:       "/var/run/HomeKitBridges/Onkyo",
+				Value:       "/var/db/HomeKitBridges/Onkyo",
 				Usage:       "configuration directory",
 				Destination: &dir,
 			},

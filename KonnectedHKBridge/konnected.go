@@ -19,6 +19,8 @@ var client *http.Client
 var disarmed chan (bool)
 var ks map[string]*Konnected
 
+// {"mac":"f4:cf:a2:6a:c2:6e","gw":"192.168.12.1","hwVersion":"3.0.0","settings":[],"rssi":-70,"nm":"255.255.255.0","ip":"192.168.12.252","actuators":[],"port":14996,"uptime":1248,"heap":34056,"swVersion":"3.0.1","dht_sensors":[],"ds18b20_sensors": [],"sensors":[]}
+
 type system struct {
 	Mac       string     `json:"mac"`
 	IP        string     `json:"ip",omitempty`
@@ -122,6 +124,7 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 			details, err = getDetails(d.ip)
 			if err != nil {
 				log.Info.Printf("unable to poll Konnected device: %s; using bootstrap mode. %s", d.ip, err.Error())
+				provisionMinimal(config, &d)
 			} else {
 				log.Info.Printf("fetched: %+v", details)
 			}
@@ -131,7 +134,7 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 
 		k := NewKonnected(details, &d)
 		// before or after NewKonnected?
-		// k.provision(details, &config, &d)
+		k.provision(details, config, &d)
 		ks[d.Mac] = k
 		klist = append(klist, k.A)
 		if k.Buzzer != nil {
@@ -189,6 +192,8 @@ func getDetails(ip string) (*system, error) {
 
 	var s system
 	if err := json.Unmarshal(body, &s); err != nil {
+		log.Info.Println(string(body))
+		// if settings is empty, the device sends [] instead of a struct... *d'oh!*
 		return &system{}, err
 	}
 	return &s, nil
@@ -336,9 +341,41 @@ func (k *Konnected) doBuzz(cmd string) error {
 	return nil
 }
 
+// use only when NOTHING is set -- just to get it started
+func provisionMinimal(c *Config, d *Device) error {
+	// curl -X PUT -H "Content-Type: application/json" -d '{"endpoint_type":"rest", "endpoint":"http://192.168.12.253:8444/konnected", "token":"notyet"}' http://192.168.12.186:15301/settings
+	log.Info.Printf("endpoint not configured, doing minimal provisioning")
+
+	newEndpoint := fmt.Sprintf("http://%s/konnected", c.ListenAddr)
+	rpd := provisiondata{
+		EndpointType: "rest",
+		Endpoint:     newEndpoint,
+		Token:        d.Password,
+	}
+
+	b, err := json.Marshal(rpd)
+	if err != nil {
+		log.Info.Printf(err.Error())
+		return err
+	}
+
+	log.Info.Printf("reprovisioning: %s", string(b))
+
+	url := fmt.Sprintf("http://%s/settings", d.ip)
+	result, err := doRequest("PUT", url, bytes.NewReader(b))
+	if err != nil {
+		log.Info.Printf(err.Error())
+		return err
+	}
+	log.Info.Printf("%s", result)
+
+	return nil
+
+}
+
 // too dangerous to use just yet
 func (k *Konnected) provision(s *system, c *Config, d *Device) error {
-	// curl -X PUT -H "Content-Type: application/json" -d '{"endpoint_type":"rest", "endpoint":"http://192.168.12.253:8444/konnected", "token":"notyet", "sensors":[{"pin":1},{"pin":2},{"pin":5},{"pin":6},{"pin":7},{"pin":9}], "actuators":[{"pin":8, "trigger": 1}]}' http://192.168.12.186:15301/settings
+	// curl -X PUT -H "Content-Type: application/json" -d '{"endpoint_type":"rest", "endpoint":"http://192.168.12.253:8444/konnected", "token":"notyet", "sensors":[{"pin":1},{"pin":2},{"pin":5},{"pin":6},{"pin":7},{"pin":9}]}' http://192.168.12.186:15301/settings
 
 	if d.Mac == "bootstrap" || d.ip == "" {
 		log.Info.Printf("not reprovisioning device in bootstrap mode")
@@ -352,7 +389,6 @@ func (k *Konnected) provision(s *system, c *Config, d *Device) error {
 
 	log.Info.Printf("endpoints differ, reprovisioning: %s / %s", s.Settings.Endpoint, newEndpoint)
 
-	url := fmt.Sprintf("http://%s/settings", d.ip)
 	rpd := provisiondata{
 		EndpointType: "rest",
 		Endpoint:     newEndpoint,
@@ -362,14 +398,14 @@ func (k *Konnected) provision(s *system, c *Config, d *Device) error {
 		switch p.Type {
 		case "door", "motion":
 			rpd.Sensors = append(rpd.Sensors, provisionpin{Pin: p.Pin})
-		case "buzzer":
-			rpd.Actuators = append(rpd.Actuators, provisionpin{Pin: p.Pin})
-		case "unused":
+		// case "buzzer":
+		//	rpd.Actuators = append(rpd.Actuators, provisionpin{Pin: p.Pin})
+		case "buzzer", "unused":
 		default:
 			log.Info.Printf("unknown type %+v", p)
 		}
 	}
-	rpd.Actuators = append(rpd.Actuators, provisionpin{Trigger: 1})
+	// rpd.Actuators = append(rpd.Actuators, provisionpin{Trigger: 1})
 
 	b, err := json.Marshal(rpd)
 	if err != nil {
@@ -377,11 +413,12 @@ func (k *Konnected) provision(s *system, c *Config, d *Device) error {
 		return err
 	}
 	log.Info.Printf("reprovisioning: %s", b)
-	result, err := doRequest("PUT", url, bytes.NewReader(b))
+	// url := fmt.Sprintf("http://%s/settings", d.ip)
+	/* result, err := doRequest("PUT", url, bytes.NewReader(b))
 	if err != nil {
 		log.Info.Printf(err.Error())
 		return err
 	}
-	log.Info.Printf("%s", result)
+	log.Info.Printf("%s", result) */
 	return nil
 }

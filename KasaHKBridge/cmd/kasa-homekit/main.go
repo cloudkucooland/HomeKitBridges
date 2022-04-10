@@ -26,7 +26,7 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "dir",
-				Value:       "/var/run/HomeKitBridges/Kasa",
+				Value:       "/var/db/HomeKitBridges/Kasa",
 				Usage:       "configuration directory",
 				Destination: &dir,
 			},
