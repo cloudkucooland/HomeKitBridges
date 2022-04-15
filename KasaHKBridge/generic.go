@@ -17,7 +17,7 @@ import (
 type generic struct {
 	*accessory.A
 
-	Status     *statusSvc   // a service for displaying status info
+	KasaStatus *statusSvc   // a service for displaying status info
 	Sysinfo    kasa.Sysinfo // contents of the last response from the device
 	lastUpdate time.Time    // last time the device responded (move to Status)
 	ip         net.IP       // would probably be better to use string
@@ -40,11 +40,12 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 	g.Sysinfo = k
 	g.lastUpdate = time.Now()
 	g.ip = ip
+	g.KasaStatus = NewStatusSvc()
 
 	info := accessory.Info{
 		Name:         k.Alias,
 		SerialNumber: k.DeviceID,
-		Manufacturer: "TP-Link",
+		Manufacturer: "TP-Link Kasa Smart",
 		Model:        k.Model,
 		Firmware:     k.SWVersion,
 	}
@@ -84,9 +85,6 @@ func (g *generic) finalize() {
 			return
 		}
 	})
-
-	g.Status = NewStatusSvc()
-	// g.A.AddS(g.Status.S)
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
@@ -101,7 +99,8 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
 
-	g.Status.RSSI.SetValue(int(k.GetSysinfo.Sysinfo.RSSI))
+	// log.Info.Printf("[%s] RSSI: [%d]", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RSSI)
+	g.KasaStatus.RSSI.SetValue(int(k.GetSysinfo.Sysinfo.RSSI))
 	g.lastUpdate = time.Now()
 }
 
@@ -131,7 +130,9 @@ type statusSvc struct {
 
 func NewStatusSvc() *statusSvc {
 	svc := statusSvc{}
-	svc.S = service.New("E871")
+	svc.S = service.New("E8800001")
+	svc.S.Primary = false
+	svc.S.Hidden = true
 
 	svc.Name = characteristic.NewName()
 	svc.Name.SetValue("Kasa Status")

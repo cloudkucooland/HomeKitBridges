@@ -162,13 +162,13 @@ type rssi struct {
 }
 
 func NewRSSI() *rssi {
-	c := characteristic.NewInt("E8700116")
+	c := characteristic.NewInt("E8700117")
 	c.Format = characteristic.FormatInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
-	c.Description = "RSSI"
-	c.SetMinValue(-100)
-	c.SetMaxValue(0)
-	c.SetValue(-50)
+	c.Permissions = []string{characteristic.PermissionRead} // , characteristic.PermissionEvents}
+	c.Description = "Kasa RSSI"
+	// c.SetMinValue(-100)
+	// c.SetMaxValue(0)
+	// c.SetValue(-50)
 
 	return &rssi{c}
 }

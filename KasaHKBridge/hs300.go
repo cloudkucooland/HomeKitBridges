@@ -11,14 +11,14 @@ import (
 	"github.com/cloudkucooland/go-kasa"
 )
 
-type KP303 struct {
+type HS300 struct {
 	*generic
 
 	Outlets []*service.Outlet
 }
 
-func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
-	acc := KP303{}
+func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
+	acc := HS300{}
 	acc.generic = &generic{}
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
@@ -48,7 +48,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		})
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
-			log.Info.Printf("setting [%s][%d] (%s) to [%t] from KP303 handler", acc.Sysinfo.Alias, idx, acc.Sysinfo.Children[idx].ID, newstate)
+			log.Info.Printf("setting [%s][%d] (%s) to [%t] from HS300 handler", acc.Sysinfo.Alias, idx, acc.Sysinfo.Children[idx].ID, newstate)
 			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
 				log.Info.Println(err.Error())
 				return
@@ -63,7 +63,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 	return &acc
 }
 
-func (h *KP303) update(k kasa.KasaDevice, ip net.IP) {
+func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 	h.genericUpdate(k, ip)
 
 	for i := 0; i < len(h.Outlets); i++ {

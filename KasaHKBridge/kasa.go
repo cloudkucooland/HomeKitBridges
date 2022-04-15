@@ -95,6 +95,9 @@ func Listener(ctx context.Context) {
 				case "KP303(US)":
 					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP303(kd, addr.IP)
 					refresh <- true
+				case "HS300(US)":
+					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS300(kd, addr.IP)
+					refresh <- true
 				default:
 					log.Info.Printf("unknown device type (%s) %s\n", addr.IP.String(), d)
 				}

@@ -27,7 +27,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb = NewHS220Svc(ip)
 	acc.AddS(acc.Lightbulb.S)
-	acc.Lightbulb.AddS(acc.Status.S)
+	// acc.AddS(acc.KasaStatus.S)
 
 	acc.Lightbulb.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	acc.Lightbulb.Brightness.SetValue(int(k.GetSysinfo.Sysinfo.Brightness))
@@ -35,7 +35,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	acc.Lightbulb.ProgramMode.SetValue(pm)
 
 	acc.Lightbulb.On.OnValueRemoteUpdate(func(newstate bool) {
-		log.Info.Printf("setting [%s] (%s) to [%t] from HS220 handler", acc.Sysinfo.Alias, acc.ip, newstate)
+		log.Info.Printf("setting [%s] to [%t] from HS220 handler", acc.Sysinfo.Alias, newstate)
 		if err := setRelayState(acc.ip, newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -43,7 +43,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	})
 
 	acc.Lightbulb.Brightness.OnValueRemoteUpdate(func(newstate int) {
-		log.Info.Printf("setting brightness [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, newstate)
+		log.Info.Printf("setting brightness [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, newstate)
 		if err := setBrightness(acc.ip, newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -51,7 +51,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	})
 
 	acc.Lightbulb.SetDuration.OnValueRemoteUpdate(func(when int) {
-		log.Info.Printf("setting duration [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		log.Info.Printf("setting duration [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, when)
 		if err := setCountdown(acc.ip, !acc.Lightbulb.On.Value(), when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -61,7 +61,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	})
 
 	acc.Lightbulb.FadeOnTime.OnValueRemoteUpdate(func(when int) {
-		log.Info.Printf("setting fade on time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		log.Info.Printf("setting fade on time [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, when)
 		kd, _ := kasa.NewDevice(acc.ip.String())
 		if err := kd.SetFadeOnTime(when); err != nil {
 			log.Info.Println(err.Error())
@@ -70,7 +70,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	})
 
 	acc.Lightbulb.FadeOffTime.OnValueRemoteUpdate(func(when int) {
-		log.Info.Printf("setting fade off time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		log.Info.Printf("setting fade off time [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, when)
 		kd, _ := kasa.NewDevice(acc.ip.String())
 		if err := kd.SetFadeOffTime(when); err != nil {
 			log.Info.Println(err.Error())
@@ -79,7 +79,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	})
 
 	acc.Lightbulb.GentleOnTime.OnValueRemoteUpdate(func(when int) {
-		log.Info.Printf("setting gentle on time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		log.Info.Printf("setting gentle on time [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, when)
 		kd, _ := kasa.NewDevice(acc.ip.String())
 		if err := kd.SetGentleOnTime(when); err != nil {
 			log.Info.Println(err.Error())
@@ -88,7 +88,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 	})
 
 	acc.Lightbulb.GentleOffTime.OnValueRemoteUpdate(func(when int) {
-		log.Info.Printf("setting gentle off time [%s] (%s) to [%d] from HS220 handler", acc.Sysinfo.Alias, acc.ip, when)
+		log.Info.Printf("setting gentle off time [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, when)
 		kd, _ := kasa.NewDevice(acc.ip.String())
 		if err := kd.SetGentleOffTime(when); err != nil {
 			log.Info.Println(err.Error())
@@ -179,20 +179,20 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 	d, _ := kasa.NewDevice(h.ip.String())
 
 	if h.Lightbulb.On.Value() != (k.GetSysinfo.Sysinfo.RelayState > 0) {
-		log.Info.Printf("updating HomeKit: [%s]:[%s] relay %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RelayState)
+		log.Info.Printf("updating HomeKit: [%s] relay %d", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RelayState)
 		h.Lightbulb.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	}
 
 	if h.Lightbulb.Brightness.Value() != int(k.GetSysinfo.Sysinfo.Brightness) {
-		log.Info.Printf("updating HomeKit: [%s]:[%s] brightness %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, int(k.GetSysinfo.Sysinfo.Brightness))
+		log.Info.Printf("updating HomeKit: [%s] brightness %d", k.GetSysinfo.Sysinfo.Alias, int(k.GetSysinfo.Sysinfo.Brightness))
 		h.Lightbulb.Brightness.SetValue(int(k.GetSysinfo.Sysinfo.Brightness))
 	}
 
 	if h.Lightbulb.ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
-		log.Info.Printf("updating HomeKit: [%s]:[%s] ProgramMode %s\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
+		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Lightbulb.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
-			d, _ := kasa.NewDevice(h.ip.String())
+			// d, _ := kasa.NewDevice(h.ip.String())
 			_ = d.ClearCountdownRules()
 		}
 	}
@@ -201,7 +201,7 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 		rules, _ := d.GetCountdownRules()
 		for _, rule := range *rules {
 			if rule.Enable > 0 {
-				log.Info.Printf("updating HomeKit: [%s]:[%s] RemainingDuration %d\n", ip.String(), k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
+				log.Info.Printf("updating HomeKit: [%s] RemainingDuration %d", k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
 				h.Lightbulb.RemainingDuration.SetValue(int(rule.Remaining))
 			}
 		}
