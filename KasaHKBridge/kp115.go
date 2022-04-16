@@ -133,15 +133,6 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		}
 	}
 
-	em, err := kd.GetEmeter()
-	if err != nil {
-		// log.Info.Printf(err.Error())
-		return
-	}
-	h.Outlet.Volt.SetValue(int(em.VoltageMV / 1000))
-	h.Outlet.Watt.SetValue(int(em.PowerMW / 1000))
-	h.Outlet.Amp.SetValue(int(em.CurrentMA))
-
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
 		rules, _ := kd.GetCountdownRules()
 		for _, rule := range *rules {
@@ -154,4 +145,19 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 	} else {
 		h.Outlet.RemainingDuration.SetValue(0)
 	}
+
+	// request emeter data over UDP
+	if err := getEmeter(h.ip); err != nil {
+		return
+	}
+}
+
+func (h *KP115) updateEmeter(e kasa.EmeterRealtime) {
+	if e.Slot > 0 {
+		log.Info.Println("slot out of bounds: %s", e.Slot)
+	}
+
+	h.Outlet.Volt.SetValue(int(e.VoltageMV / 1000))
+	h.Outlet.Watt.SetValue(int(e.PowerMW / 1000))
+	h.Outlet.Amp.SetValue(int(e.CurrentMA))
 }

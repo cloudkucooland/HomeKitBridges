@@ -284,6 +284,19 @@ func setChildRelayAlias(ip net.IP, parent, child, alias string) error {
 	return nil
 }
 
+func getEmeter(ip net.IP) error {
+
+	cmd := fmt.Sprintf(kasa.CmdGetEmeter)
+	payload := kasa.Scramble(cmd)
+
+	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
+		log.Info.Printf("get emeter failed: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
 func getEmeterChild(ip net.IP, parent, child string) error {
 	full := fmt.Sprintf("%s%s", parent, child)
 
