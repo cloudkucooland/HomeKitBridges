@@ -26,8 +26,10 @@ var pollInterval time.Duration = 30
 type kasaDevice interface {
 	getA() *accessory.A
 	update(kasa.KasaDevice, net.IP)
+	updateEmeter(kasa.EmeterRealtime)
 	getLastUpdate() time.Time
 	unreachable()
+	getIP() net.IP
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
@@ -64,7 +66,7 @@ func Listener(ctx context.Context) {
 				continue
 			}
 
-			if !strings.Contains(s, `"get_sysinfo"`) {
+			if !(strings.Contains(s, `"get_sysinfo"`) || strings.HasPrefix(s, `{"emeter":{"get_realtime":{`)) {
 				log.Info.Printf("unknown message from %s: %s", addr.IP, s)
 				continue
 			}
@@ -72,6 +74,11 @@ func Listener(ctx context.Context) {
 			var kd kasa.KasaDevice
 			if err = json.Unmarshal(d, &kd); err != nil {
 				log.Info.Printf("unmarshal failed: %s\n", err.Error())
+				continue
+			}
+
+			if strings.HasPrefix(s, `{"emeter":{"get_realtime":{`) {
+				updateEmeter(kd, addr.IP)
 				continue
 			}
 
@@ -249,28 +256,54 @@ func setChildRelayState(ip net.IP, parent, child string, newstate bool) error {
 		state = 1
 	}
 
-	idx := fmt.Sprintf("%s%s", parent, child)
+	full := fmt.Sprintf("%s%s", parent, child)
 
-	cmd := fmt.Sprintf(kasa.CmdSetRelayStateChild, idx, state)
+	cmd := fmt.Sprintf(kasa.CmdSetRelayStateChild, full, state)
 	payload := kasa.Scramble(cmd)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
-		log.Info.Printf("set child relay failed: %s\n", err.Error())
+		log.Info.Printf("set child relay failed: %s", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func setChildRelayAlias(ip net.IP, index string, alias string) error {
+func setChildRelayAlias(ip net.IP, parent, child, alias string) error {
+	full := fmt.Sprintf("%s%s", parent, child)
+
 	k, err := kasa.NewDevice(ip.String())
 	if err != nil {
 		log.Info.Printf(err.Error())
 		return err
 	}
-	if err := k.SetChildAlias(index, alias); err != nil {
+	if err := k.SetChildAlias(full, alias); err != nil {
 		log.Info.Printf(err.Error())
 		return err
 	}
+	return nil
+}
+
+func getEmeterChild(ip net.IP, parent, child string) error {
+	full := fmt.Sprintf("%s%s", parent, child)
+
+	cmd := fmt.Sprintf(kasa.CmdGetEmeterChild, full)
+	payload := kasa.Scramble(cmd)
+
+	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
+		log.Info.Printf("get emeter child failed: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func updateEmeter(kd kasa.KasaDevice, ip net.IP) error {
+	for _, k := range kasas {
+		if k.getIP().String() == ip.String() {
+			k.updateEmeter(kd.Emeter.Realtime)
+		}
+	}
+
 	return nil
 }

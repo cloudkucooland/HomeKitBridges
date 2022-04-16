@@ -143,3 +143,11 @@ func NewStatusSvc() *statusSvc {
 
 	return &svc
 }
+
+func (g *generic) updateEmeter(e kasa.EmeterRealtime) {
+	log.Info.Printf("emeter update from non-emeter device: %s %+v", g.ip, e)
+}
+
+func (g *generic) getIP() net.IP {
+	return g.ip
+}
