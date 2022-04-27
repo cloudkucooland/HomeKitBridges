@@ -238,10 +238,10 @@ func NewKonnectedBuzzer(name string) *KonnectedBuzzer {
 	a := KonnectedBuzzer{}
 	a.A = accessory.New(accessory.Info{
 		Name:         name,
-		SerialNumber: "0001",
+		SerialNumber: "0002",
 		Manufacturer: "Konnected HKB",
 		Model:        "Buzzer",
-		Firmware:     "0001",
+		Firmware:     "0002",
 	}, accessory.TypeSwitch)
 	a.Switch = NewKonnectedBuzzerSvc(name)
 	a.AddS(a.Switch.S)
@@ -281,10 +281,10 @@ func NewKonnectedTrigger() *KonnectedTrigger {
 
 	a.A = accessory.New(accessory.Info{
 		Name:         "Trigger",
-		SerialNumber: "0001",
+		SerialNumber: "0003",
 		Manufacturer: "Konnected HKB",
 		Model:        "Trigger",
-		Firmware:     "0001",
+		Firmware:     "0003",
 	}, accessory.TypeSwitch)
 
 	a.Trigger = NewKonnectedTriggerSvc()

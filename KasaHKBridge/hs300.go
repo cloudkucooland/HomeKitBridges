@@ -56,17 +56,6 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 			o.OutletInUse.SetValue(newstate)
 		})
 
-		o.SetDuration.OnValueRemoteUpdate(func(when int) {
-			log.Info.Printf("setting duration [%s] to [%d] from HS300 handler", acc.Sysinfo.Alias, when)
-			// if err := setCountdownChild(acc.ip, !o.On.Value(), when, acc.Sysinfo.Children[idx].ID); err != nil {
-			if err := setCountdown(acc.ip, !o.On.Value(), when); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-			o.ProgramMode.SetValue(characteristic.ProgramModeProgramScheduled)
-			o.RemainingDuration.SetValue(when)
-		})
-
 		acc.Outlets[i] = o
 	}
 
@@ -81,12 +70,9 @@ type hs300outletSvc struct {
 	On          *characteristic.On
 	OutletInUse *characteristic.OutletInUse
 
-	ProgramMode       *characteristic.ProgramMode
-	SetDuration       *characteristic.SetDuration
-	RemainingDuration *characteristic.RemainingDuration
-	Volt              *volt
-	Watt              *watt
-	Amp               *amp
+	Volt *volt
+	Watt *watt
+	Amp  *amp
 }
 
 func NewHS300OutletSvc() *hs300outletSvc {
@@ -98,17 +84,6 @@ func NewHS300OutletSvc() *hs300outletSvc {
 
 	svc.OutletInUse = characteristic.NewOutletInUse()
 	svc.AddC(svc.OutletInUse.C)
-
-	svc.ProgramMode = characteristic.NewProgramMode()
-	svc.AddC(svc.ProgramMode.C)
-	svc.ProgramMode.SetValue(characteristic.ProgramModeNoProgramScheduled)
-
-	svc.SetDuration = characteristic.NewSetDuration()
-	svc.AddC(svc.SetDuration.C)
-
-	svc.RemainingDuration = characteristic.NewRemainingDuration()
-	svc.AddC(svc.RemainingDuration.C)
-	svc.RemainingDuration.SetValue(0)
 
 	svc.Volt = NewVolt()
 	svc.AddC(svc.Volt.C)
@@ -128,39 +103,11 @@ func NewHS300OutletSvc() *hs300outletSvc {
 func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 	h.genericUpdate(k, ip)
 
-	kd, err := kasa.NewDevice(ip.String())
-	if err != nil {
-		log.Info.Printf(err.Error())
-		return
-	}
-
 	for i := 0; i < len(h.Outlets); i++ {
 		if h.Outlets[i].On.Value() != (k.GetSysinfo.Sysinfo.Children[i].RelayState > 0) {
 			log.Info.Printf("updating HomeKit: [%s][%d] relay %d", k.GetSysinfo.Sysinfo.Alias, i, k.GetSysinfo.Sysinfo.Children[i].RelayState)
 			h.Outlets[i].On.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 			h.Outlets[i].OutletInUse.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
-		}
-
-		if h.Outlets[i].ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
-			log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
-			h.Outlets[i].ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
-			if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
-				_ = kd.ClearCountdownRules()
-			}
-		}
-
-		if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
-			rules, _ := kd.GetCountdownRules()
-			// rules, _ := kd.GetCountdownRulesChild(h.Sysinfo.Children[i].ID)
-			for _, rule := range *rules {
-				log.Info.Printf("%+v", rule)
-				if rule.Enable > 0 {
-					log.Info.Printf("updating HomeKit: [%s] RemainingDuration %d", k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
-					h.Outlets[i].RemainingDuration.SetValue(int(rule.Remaining))
-				}
-			}
-		} else {
-			h.Outlets[i].RemainingDuration.SetValue(0)
 		}
 
 		// request emeter data for each outlet
