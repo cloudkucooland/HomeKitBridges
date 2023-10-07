@@ -9,15 +9,14 @@ import (
 )
 
 type Config struct {
-	APIKey     string
-	Integrator string
-	Email      string
+	Email    string
+	Password string
 }
 
 func loadConfig(filename string) (*Config, error) {
 	conf := Config{
-		APIKey: "nothing",
-		Email:  "nobody@loopback.edu",
+		Password: "mypassword",
+		Email:    "test@test.com",
 	}
 
 	confFile, err := os.Open(filename)

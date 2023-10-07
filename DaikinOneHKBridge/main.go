@@ -9,12 +9,11 @@ import (
 	"time"
 
 	"github.com/brutella/hap"
-	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/log"
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/cloudkucooland/daikin-one/daikin"
+	"github.com/redgoose/daikin-skyport"
 )
 
 func main() {
@@ -60,19 +59,17 @@ func main() {
 			}
 
 			// start the daikin logic
-			d := daikin.New(conf.APIKey, conf.Integrator, conf.Email)
-			locations, err := d.ListDevices()
+			d := daikin.New(conf.Email, conf.Password)
+			devices, err := d.GetDevices()
 			if err != nil {
 				log.Info.Panic(err.Error())
 			}
 
 			// if we want to be smart, we can add each and every, now just use the last since I only have one
 			var device *daikin.Device
-			for _, l := range *locations {
-				for _, d := range l.Devices {
-					log.Info.Printf("%+v", d)
-					device = &d
-				}
+			for _, d := range *devices {
+				log.Info.Printf("%+v", d)
+				device = &d
 			}
 
 			// build the HAP device
@@ -88,7 +85,7 @@ func main() {
 			ctx, cancel := context.WithCancel(context.Background())
 
 			// update the thermostat with data from Daikin cloud -- move this into the devices.go file, should be per device
-			go func(ctx context.Context, thermostat *accessory.Thermostat) {
+			go func(ctx context.Context, thermostat *daikinAccessory) {
 				ticker := time.NewTicker(180 * time.Second)
 				defer ticker.Stop()
 
