@@ -66,9 +66,24 @@ func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
 	a.Thermostat.TargetHeatingCoolingState.SetValue(hapMode)
 	a.Thermostat.TargetTemperature.SetValue(targetTemp)
 	a.Thermostat.CurrentTemperature.SetValue(float64(status.TempIndoor))
-	a.Fan.TargetState.SetValue(characteristic.TargetFanStateAuto)
+	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.HumIndoor))
+	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSP))
+	a.Thermostat.CoolingThresholdTemperature.SetValue(float64(status.CspActive))
+	a.Thermostat.HeatingThresholdTemperature.SetValue(float64(status.HspActive))
 
-	a.Thermostat.TemperatureDisplayUnits.SetValue(characteristic.TemperatureDisplayUnitsFahrenheit)
+	a.Thermostat.TemperatureDisplayUnits.SetValue(status.Units)
+	a.Thermostat.TemperatureDisplayUnits.OnValueRemoteUpdate(func(s int) {
+		log.Info.Printf("setting display units to %d from handler", s)
+		// Homekit and Daikin flip these...
+		x := 1
+		if s == 1 {
+			x = 0
+		}
+		json := fmt.Sprintf(`{"units": %d}`, x)
+		if err := da.UpdateDeviceRaw(a.Info.SerialNumber.Value(), json); err != nil {
+			log.Info.Println(err.Error())
+		}
+	})
 
 	// add handler for setting the system state
 	a.Thermostat.TargetHeatingCoolingState.OnValueRemoteUpdate(func(s int) {
@@ -143,11 +158,19 @@ func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
 	a.Thermostat.TargetRelativeHumidity.OnValueRemoteUpdate(func(s float64) {
 		log.Info.Printf("setting target relative humidity to %f from handler", s)
 		json := fmt.Sprintf(`{"dehumSP": %f}`, s)
-
 		if err := da.UpdateDeviceRaw(a.Info.SerialNumber.Value(), json); err != nil {
 			log.Info.Println(err.Error())
 		}
 	})
+
+	switch status.FanCirculate {
+	case daikin.FanCirculateOff:
+		a.Fan.Active.SetValue(characteristic.CurrentFanStateInactive)
+	case daikin.FanCirculateOn:
+		a.Fan.Active.SetValue(characteristic.CurrentFanStateBlowingAir)
+	case daikin.FanCirculateSched:
+		a.Fan.Active.SetValue(characteristic.CurrentFanStateIdle)
+	}
 
 	// never go to Off, just return to the schededule
 	a.Fan.Active.OnValueRemoteUpdate(func(s int) {
@@ -167,6 +190,7 @@ func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
 		}
 	})
 
+	a.Fan.TargetState.SetValue(characteristic.TargetFanStateAuto)
 	a.Fan.TargetState.OnValueRemoteUpdate(func(s int) {
 		switch s {
 		case characteristic.TargetFanStateManual:
@@ -177,6 +201,15 @@ func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
 			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateSched)
 		}
 	})
+
+	switch status.FanCirculateSpeed {
+	case daikin.FanCirculateSpeedLow:
+		a.Fan.RotationSpeed.SetValue(33)
+	case daikin.FanCirculateSpeedMed:
+		a.Fan.RotationSpeed.SetValue(66)
+	case daikin.FanCirculateSpeedHigh:
+		a.Fan.RotationSpeed.SetValue(99)
+	}
 
 	a.Fan.RotationSpeed.OnValueRemoteUpdate(func(s float64) {
 		log.Info.Printf("setting fan rotational speed to %f from handler", s)
@@ -190,6 +223,10 @@ func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
 		da.SetFanSpeed(a.Info.SerialNumber.Value(), rs)
 	})
 
+	if status.AlertMediaAirFilterActive {
+		a.Filter.FilterChangeIndication.SetValue(1)
+	}
+
 	return &a
 }
 
@@ -202,6 +239,10 @@ func update(a *daikinAccessory, d *daikin.Daikin) error {
 	// log.Info.Printf("%+v", status)
 
 	a.Thermostat.CurrentTemperature.SetValue(float64(status.TempIndoor))
+	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.HumIndoor))
+	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSP))
+	a.Thermostat.CoolingThresholdTemperature.SetValue(float64(status.CspActive))
+	a.Thermostat.HeatingThresholdTemperature.SetValue(float64(status.HspActive))
 
 	hapMode := characteristic.CurrentHeatingCoolingStateOff
 	var targetTemp float64 = a.Thermostat.TargetTemperature.Value()
@@ -247,11 +288,6 @@ func update(a *daikinAccessory, d *daikin.Daikin) error {
 	// % remaining
 	var filtLifeRemaining float64 = (100.0 - ((float64(status.AlertMediaAirFilterDays) / float64(status.AlertMediaAirFilterDaysLimit)) * 100.0))
 	a.Filter.FilterLifeLevel.SetValue(filtLifeRemaining)
-
-	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.HumIndoor))
-	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSP))
-	a.Thermostat.CoolingThresholdTemperature.SetValue(float64(status.CspActive))
-	a.Thermostat.HeatingThresholdTemperature.SetValue(float64(status.HspActive))
 
 	return nil
 }
