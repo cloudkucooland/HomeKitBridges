@@ -2,7 +2,7 @@ package konnectedkhbridge
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/brutella/hap/log"
@@ -42,7 +42,7 @@ func LoadConfig(filename string) (*Config, error) {
 	}
 	defer confFile.Close()
 
-	raw, err := ioutil.ReadAll(confFile)
+	raw, err := io.ReadAll(confFile)
 	if err != nil {
 		log.Info.Printf("%s\nunable to read config %s: using defaults\n%+v", err.Error(), filename, conf)
 		return &conf, err

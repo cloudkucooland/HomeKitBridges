@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -68,14 +68,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				k.ip = ip
 				if err := k.getStatusAndUpdate(); err != nil {
 					log.Info.Println(err.Error())
+					fmt.Fprint(w, jsonOK)
+					return
 				}
 			} else {
 				log.Info.Println("rediscovery failed: still in bootstrap mode, try rebooting the hardware")
+				fmt.Fprint(w, jsonOK)
+				return
 			}
 		}
 	}
 
-	jBlob, err := ioutil.ReadAll(r.Body)
+	jBlob, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Info.Printf("konnected: unable to read update: %s", err.Error())
 		// http.Error(w, `{ "status": "bad" }`, http.StatusInternalServerError)
@@ -98,7 +102,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// log.Info.Printf("sent from %s %s: %s", device, r.RemoteAddr, string(jBlob))
 	err = json.Unmarshal(jBlob, &p)
 	if err != nil {
-		log.Info.Printf("konnected: unable to understand update")
+		log.Info.Printf("konnected: unable to parse update: %s", string(jBlob))
 		// http.Error(w, `{ "status": "bad" }`, http.StatusNotAcceptable)
 		fmt.Fprint(w, jsonOK)
 		return
@@ -107,23 +111,23 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// tell homekit about the change and run any actions
 	// move this logic into the device e.g. k.Update(p.Pin, p.State)
 	if svc, ok := k.pins[p.Pin]; ok {
-		switch svc.(type) {
+		switch svc := svc.(type) {
 		case *KonnectedMotionSensor:
-			svc.(*KonnectedMotionSensor).MotionDetected.SetValue(p.State == 1)
+			svc.MotionDetected.SetValue(p.State == 1)
 			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
 			case characteristic.SecuritySystemCurrentStateDisarmed:
 				// nothing
-				// log.Info.Printf("%s: %s", svc.(*KonnectedMotionSensor).Name.Value(), p.State)
+				// log.Info.Printf("%s: %s", svc.Name.Value(), p.State)
 			case characteristic.SecuritySystemCurrentStateStayArm:
 				// nothing
-				// log.Info.Printf("%s: %s", svc.(*KonnectedMotionSensor).Name.Value(), p.State)
+				// log.Info.Printf("%s: %s", svc.Name.Value(), p.State)
 			default:
 				// for now we won't do anything since the cats trip it
 				log.Info.Printf("motion detected while alarm armed; pin: %d", p.Pin)
 				k.doorchirps()
 			}
 		case *KonnectedContactSensor:
-			svc.(*KonnectedContactSensor).ContactSensorState.SetValue(int(p.State))
+			svc.ContactSensorState.SetValue(int(p.State))
 			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
 			case characteristic.SecuritySystemCurrentStateAwayArm:
 				k.countdownAlarm()
@@ -139,10 +143,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			if p.State == 0 {
 				state = "closed"
 			}
-			log.Info.Printf("%s: %s", svc.(*KonnectedContactSensor).Name.Value(), state)
+			log.Info.Printf("%s: %s", svc.Name.Value(), state)
 		case *KonnectedBuzzer: // not used
-			log.Info.Printf("%s: %s", svc.(*KonnectedBuzzer).Switch.Name.Value(), p.State)
-			// svc.(*KonnectedBuzzer).Beeper.SetValue(int(p.State))
+			log.Info.Printf("%s: %s", svc.Switch.Name.Value(), p.State)
+			// svc.Beeper.SetValue(int(p.State))
 		default:
 			log.Info.Println("bad type in handler: %+v", svc)
 			k.doorchirps()

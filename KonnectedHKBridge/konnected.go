@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -164,7 +163,7 @@ func doRequest(method, url string, buf io.Reader) (*[]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Info.Println(err.Error())
 		return nil, err
@@ -184,7 +183,7 @@ func getDetails(ip string) (*system, error) {
 		return &system{}, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Info.Println(err.Error())
 		return &system{}, err
@@ -221,12 +220,12 @@ func (k *Konnected) getStatusAndUpdate() error {
 
 	for _, v := range *status {
 		if p, ok := k.pins[v.Pin]; ok {
-			switch p.(type) {
+			switch p := p.(type) {
 			case *KonnectedMotionSensor:
-				p.(*KonnectedMotionSensor).MotionDetected.SetValue(v.State == 1)
+				p.MotionDetected.SetValue(v.State == 1)
 			case *KonnectedContactSensor:
-				if p.(*KonnectedContactSensor).ContactSensorState.Value() != int(v.State) {
-					p.(*KonnectedContactSensor).ContactSensorState.SetValue(int(v.State))
+				if p.ContactSensorState.Value() != int(v.State) {
+					p.ContactSensorState.SetValue(int(v.State))
 				}
 			default:
 				log.Info.Printf("konnected device not processed: pin %d", v.Pin)
@@ -304,9 +303,9 @@ func (k *Konnected) countdownAlarm() {
 
 func (k *Konnected) getBuzzerPin() (uint8, *KonnectedBuzzer) {
 	for pid, pin := range k.pins {
-		switch pin.(type) {
+		switch pin := pin.(type) {
 		case *KonnectedBuzzer:
-			return pid, pin.(*KonnectedBuzzer)
+			return pid, pin
 		default:
 		}
 	}

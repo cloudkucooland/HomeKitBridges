@@ -83,13 +83,13 @@ func NewKonnected(details *system, d *Device) *Konnected {
 	// set initial state
 	for _, v := range details.Sensors {
 		if p, ok := acc.pins[v.Pin]; ok {
-			switch p.(type) {
+			switch p := p.(type) {
 			case *KonnectedContactSensor:
-				p.(*KonnectedContactSensor).ContactSensorState.SetValue(int(v.State))
+				p.ContactSensorState.SetValue(int(v.State))
 			case *KonnectedMotionSensor:
-				p.(*KonnectedMotionSensor).MotionDetected.SetValue(false)
+				p.MotionDetected.SetValue(false)
 			case *KonnectedBuzzer:
-				// p.(*KonnectedBuzzer).Switch.On.SetValue(false)
+				// p.Switch.On.SetValue(false)
 			default:
 				log.Info.Println("unknown konnected device type")
 			}
