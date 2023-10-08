@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/brutella/hap/log"
 )
 
+// Config is the basic internal config
 type Config struct {
 	Email    string
 	Password string
@@ -26,7 +27,7 @@ func loadConfig(filename string) (*Config, error) {
 	}
 	defer confFile.Close()
 
-	raw, err := ioutil.ReadAll(confFile)
+	raw, err := io.ReadAll(confFile)
 	if err != nil {
 		log.Info.Printf("%s\nunable to read config %s: using defaults\n%+v", err.Error(), filename, conf)
 		return &conf, err
