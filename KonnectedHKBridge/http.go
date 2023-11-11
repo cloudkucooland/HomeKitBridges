@@ -13,7 +13,7 @@ import (
 	"github.com/brutella/hap/log"
 
 	// use go-chi since it is what hap uses, no need for multiple
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 )
 
 const jsonOK = `{ "status": "OK" }`
