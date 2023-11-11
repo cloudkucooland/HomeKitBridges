@@ -22,15 +22,15 @@ var ks map[string]*Konnected
 
 type system struct {
 	Mac       string     `json:"mac"`
-	IP        string     `json:"ip",omitempty`
-	Gateway   string     `json:"gw",omitempty`
-	Netmask   string     `json:"nm",omitempty`
-	Hardware  string     `json:"hwVersion",omitempty`
-	RSSI      int8       `json:"rssi",omitempty`
-	Software  string     `json:"swVersion",omitempty`
-	Port      uint16     `json:"port",omitempty`
-	Uptime    uint64     `json:"uptime",omitempty`
-	Heap      uint64     `json:"heap",omitempty`
+	IP        string     `json:"ip,omitempty"`
+	Gateway   string     `json:"gw,omitempty"`
+	Netmask   string     `json:"nm,omitempty"`
+	Hardware  string     `json:"hwVersion,omitempty"`
+	RSSI      int8       `json:"rssi,omitempty"`
+	Software  string     `json:"swVersion,omitempty"`
+	Port      uint16     `json:"port,omitempty"`
+	Uptime    uint64     `json:"uptime,omitempty"`
+	Heap      uint64     `json:"heap,omitempty"`
 	Settings  settings   `json:"settings"`
 	Sensors   []sensor   `json:"sensors"`
 	DBSensors []sensor   `json:"ds18b20_sensors"`
@@ -39,15 +39,15 @@ type system struct {
 }
 
 type settings struct {
-	EndpointType string `json:"endpoint_type",omitempty`
-	Endpoint     string `json:"endpoint",omitempty`
-	Token        string `json:"token",omitempty`
+	EndpointType string `json:"endpoint_type,omitempty"`
+	Endpoint     string `json:"endpoint,omitempty"`
+	Token        string `json:"token,omitempty"`
 }
 
 type provisiondata struct {
-	EndpointType string         `json:"endpoint_type",omitempty`
-	Endpoint     string         `json:"endpoint",omitempty`
-	Token        string         `json:"token",omitempty`
+	EndpointType string         `json:"endpoint_type,omitempty"`
+	Endpoint     string         `json:"endpoint,omitempty"`
+	Token        string         `json:"token,omitempty"`
 	Sensors      []provisionpin `json:"sensors"`
 	Actuators    []provisionpin `json:"actuators"`
 }
@@ -60,7 +60,7 @@ type provisionpin struct {
 type sensor struct {
 	Pin   uint8 `json:"pin"`
 	State uint8 `json:"state"`
-	Retry uint8 `json:"retry",omitempty`
+	Retry uint8 `json:"retry,omitempty"`
 }
 
 type actuator struct {
@@ -76,9 +76,9 @@ type dht struct {
 type command struct {
 	Pin       uint8  `json:"pin"`
 	State     uint8  `json:"state"`
-	Momentary uint16 `json:"state",omitempty`
-	Times     uint8  `json:"times",omitempty`
-	Pause     uint8  `json:"pause",omitempty`
+	Momentary uint16 `json:"momentary,omitempty"`
+	Times     uint8  `json:"times,omitempty"`
+	Pause     uint8  `json:"pause,omitempty"`
 }
 
 // Startup sets the globals, discovers & loads settings from the from the Konnected devices

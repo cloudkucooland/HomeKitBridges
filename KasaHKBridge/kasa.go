@@ -134,7 +134,7 @@ func Startup(ctx context.Context, r chan bool) error {
 	// wait for the Listener to get going -- use a proper sync...
 	time.Sleep(1 * time.Second)
 
-	to, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	to, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	discover()
 
 FIRST:
@@ -148,6 +148,7 @@ FIRST:
 	}
 
 	log.Info.Printf("Initial discovery complete, found %d devices\n", len(kasas))
+    cancel()
 
 	// start the routine poller
 	go poller(ctx)

@@ -76,7 +76,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 			log.Info.Printf("Konnected Pin: %d: %s (buzzer)", v.Pin, v.Name)
 		case "unused": // not used
 		default:
-			log.Info.Println("unknown KonnectedZone type: %+v", v)
+			log.Info.Printf("unknown KonnectedZone type: %+v", v)
 		}
 	}
 

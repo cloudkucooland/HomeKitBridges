@@ -154,7 +154,7 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 
 func (h *KP115) updateEmeter(e kasa.EmeterRealtime) {
 	if e.Slot > 0 {
-		log.Info.Println("slot out of bounds: %s", e.Slot)
+		log.Info.Printf("slot out of bounds: %d", e.Slot)
 	}
 
 	h.Outlet.Volt.SetValue(int(e.VoltageMV / 1000))

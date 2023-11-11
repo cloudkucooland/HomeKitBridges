@@ -145,10 +145,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 			log.Info.Printf("%s: %s", svc.Name.Value(), state)
 		case *KonnectedBuzzer: // not used
-			log.Info.Printf("%s: %s", svc.Switch.Name.Value(), p.State)
+			log.Info.Printf("%s: %d", svc.Switch.Name.Value(), p.State)
 			// svc.Beeper.SetValue(int(p.State))
 		default:
-			log.Info.Println("bad type in handler: %+v", svc)
+			log.Info.Printf("bad type in handler: %+v", svc)
 			k.doorchirps()
 		}
 	}

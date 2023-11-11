@@ -40,7 +40,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 
 		idx := i // local scope
 		n.OnValueRemoteUpdate(func(newname string) {
-			log.Info.Print("setting alias to [%s]", newname)
+			log.Info.Printf("setting alias to [%s]", newname)
 			if err := setChildRelayAlias(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newname); err != nil {
 				log.Info.Println(err.Error())
 				return
@@ -120,7 +120,7 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 
 func (h *HS300) updateEmeter(e kasa.EmeterRealtime) {
 	if int(e.Slot) >= len(h.Outlets) {
-		log.Info.Println("slot out of bounds: %s", e.Slot)
+		log.Info.Printf("slot out of bounds: %d", e.Slot)
 	}
 
 	h.Outlets[e.Slot].Volt.SetValue(int(e.VoltageMV / 1000))

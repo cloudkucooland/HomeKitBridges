@@ -74,7 +74,7 @@ func (g *generic) finalize() {
 
 	// add handler: if the device is renamed in homekit, update the device's internal name to match
 	g.A.Info.Name.OnValueRemoteUpdate(func(newname string) {
-		log.Info.Print("setting alias to [%s]", newname)
+		log.Info.Printf("setting alias to [%s]", newname)
 		d, err := kasa.NewDevice(g.ip.String())
 		if err != nil {
 			log.Info.Println(err.Error())

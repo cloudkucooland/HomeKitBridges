@@ -40,7 +40,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 		idx := i // local scope
 		n.OnValueRemoteUpdate(func(newname string) {
-			log.Info.Print("setting alias to [%s]", newname)
+			log.Info.Printf("setting alias to [%s]", newname)
 			if err := setChildRelayAlias(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newname); err != nil {
 				log.Info.Println(err.Error())
 				return
