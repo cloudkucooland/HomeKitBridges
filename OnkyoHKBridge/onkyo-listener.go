@@ -47,7 +47,7 @@ func iscpListener(ctx context.Context, o *OnkyoReceiver) {
 			if int(i) != o.Television.ActiveIdentifier.Value() {
 				log.Info.Println("setting source from listener")
 				o.Television.ActiveIdentifier.SetValue(int(i))
-				o.Television.ConfiguredName.SetValue(fmt.Sprintf("%s:%s", o.Info.Name, o.Sources[int(i)]))
+				o.Television.ConfiguredName.SetValue(fmt.Sprintf("%s:%s", o.Info.Name.Value(), o.Sources[int(i)]))
 			}
 		case "NRI":
 			log.Info.Println("Onkyo Details pulled")

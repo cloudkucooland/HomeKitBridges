@@ -284,7 +284,7 @@ func NewOnkyoReceiverSvc() *OnkyoReceiverSvc {
 	svc.StreamingStatus = characteristic.NewStreamingStatus()
 	svc.AddC(svc.StreamingStatus.C)
 	svc.StreamingStatus.OnValueRemoteUpdate(func(newstate []byte) {
-		log.Info.Printf("OnkyoReceiver: HC requested StreamingStatus: %d", string(newstate))
+		log.Info.Printf("OnkyoReceiver: HC requested StreamingStatus: %s", string(newstate))
 	})
 
 	svc.Active = characteristic.NewActive()
