@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -59,7 +59,7 @@ func main() {
 			if err != nil {
 				log.Info.Panic("unable to open config: ", cfd)
 			}
-			raw, err := ioutil.ReadAll(confFile)
+			raw, err := io.ReadAll(confFile)
 			if err != nil {
 				log.Info.Panic(err)
 			}
@@ -79,6 +79,9 @@ func main() {
 
 			// discover & configure onkyo device
 			receiver, err := ohkb.DiscoverOnkyo(ctx, conf.IP)
+			if err != nil {
+				log.Info.Panic(err)
+			}
 
 			// start onkyo background puller -- move to DiscoverOnkyo
 			go func() {
