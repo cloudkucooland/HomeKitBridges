@@ -148,7 +148,7 @@ FIRST:
 	}
 
 	log.Info.Printf("Initial discovery complete, found %d devices\n", len(kasas))
-    cancel()
+	cancel()
 
 	// start the routine poller
 	go poller(ctx)

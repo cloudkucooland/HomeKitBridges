@@ -2,6 +2,7 @@ package kasahkbridge
 
 import (
 	"net"
+	"strconv"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -37,6 +38,19 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		n := characteristic.NewName()
 		n.SetValue(acc.Sysinfo.Children[i].Alias)
 		o.AddC(n.C)
+
+		dx, err := strconv.Atoi(acc.Sysinfo.Children[i].ID)
+		if err != nil {
+			log.Info.Println(err.Error())
+		} else {
+			id := characteristic.NewIdentifier()
+			id.SetValue(dx)
+			o.AddC(id.C)
+
+			sli := characteristic.NewIdentifier()
+			sli.SetValue(dx)
+			o.AddC(sli.C)
+		}
 
 		idx := i // local scope
 		n.OnValueRemoteUpdate(func(newname string) {
