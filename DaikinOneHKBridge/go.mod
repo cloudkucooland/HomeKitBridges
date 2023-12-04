@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/brutella/hap v0.0.28
 	github.com/redgoose/daikin-skyport v0.0.0-20231008000221-121efc147b9a
-	github.com/urfave/cli/v2 v2.25.7
+	github.com/urfave/cli/v2 v2.26.0
 )
 
 require (
