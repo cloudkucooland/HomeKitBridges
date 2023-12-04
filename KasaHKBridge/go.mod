@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/brutella/hap v0.0.28
 	github.com/cloudkucooland/go-kasa v0.0.0-20231123194410-d1f3fabfb3c8
-	github.com/urfave/cli/v2 v2.25.7
+	github.com/urfave/cli/v2 v2.26.0
 )
 
 require (
