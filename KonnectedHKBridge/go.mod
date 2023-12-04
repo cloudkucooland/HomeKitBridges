@@ -6,7 +6,7 @@ require (
 	github.com/brutella/hap v0.0.28
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/huin/goupnp v1.3.0
-	github.com/urfave/cli/v2 v2.25.7
+	github.com/urfave/cli/v2 v2.26.0
 )
 
 require (
