@@ -15,12 +15,12 @@ import (
 
 // included in all device types
 type generic struct {
+	lastUpdate time.Time // last time the device responded (move to Status)
 	*accessory.A
 
 	KasaStatus *statusSvc   // a service for displaying status info
-	Sysinfo    kasa.Sysinfo // contents of the last response from the device
-	lastUpdate time.Time    // last time the device responded (move to Status)
 	ip         net.IP       // would probably be better to use string
+	Sysinfo    kasa.Sysinfo // contents of the last response from the device
 }
 
 func (g *generic) getA() *accessory.A {
