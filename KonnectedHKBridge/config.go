@@ -23,10 +23,10 @@ type Device struct {
 
 // exposed in accessory.KonnectedZones
 type Zone struct {
-	Pin  uint8  `json:"pin"`
 	Name string `json:"name"`
 	Type string `json:"type"`
 	// Actuator actuator `json:"actuator",omitempty`
+	Pin uint8 `json:"pin"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

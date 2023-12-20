@@ -12,12 +12,12 @@ import (
 
 type Konnected struct {
 	*accessory.A
-	ip             string
-	password       string
 	pins           map[uint8]interface{}
 	SecuritySystem *KonnectedSvc
 	Buzzer         *KonnectedBuzzer
 	Trigger        *KonnectedTrigger
+	ip             string
+	password       string
 }
 
 func NewKonnected(details *system, d *Device) *Konnected {

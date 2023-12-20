@@ -21,21 +21,21 @@ var ks map[string]*Konnected
 // {"mac":"f4:cf:a2:6a:c2:6e","gw":"192.168.12.1","hwVersion":"3.0.0","settings":[],"rssi":-70,"nm":"255.255.255.0","ip":"192.168.12.252","actuators":[],"port":14996,"uptime":1248,"heap":34056,"swVersion":"3.0.1","dht_sensors":[],"ds18b20_sensors": [],"sensors":[]}
 
 type system struct {
+	Settings  settings   `json:"settings"`
 	Mac       string     `json:"mac"`
 	IP        string     `json:"ip,omitempty"`
 	Gateway   string     `json:"gw,omitempty"`
 	Netmask   string     `json:"nm,omitempty"`
 	Hardware  string     `json:"hwVersion,omitempty"`
-	RSSI      int8       `json:"rssi,omitempty"`
 	Software  string     `json:"swVersion,omitempty"`
-	Port      uint16     `json:"port,omitempty"`
-	Uptime    uint64     `json:"uptime,omitempty"`
-	Heap      uint64     `json:"heap,omitempty"`
-	Settings  settings   `json:"settings"`
 	Sensors   []sensor   `json:"sensors"`
 	DBSensors []sensor   `json:"ds18b20_sensors"`
 	Actuators []actuator `json:"actuators"`
 	DHTs      []dht      `json:"dht_sensors"`
+	Uptime    uint64     `json:"uptime,omitempty"`
+	Heap      uint64     `json:"heap,omitempty"`
+	Port      uint16     `json:"port,omitempty"`
+	RSSI      int8       `json:"rssi,omitempty"`
 }
 
 type settings struct {
