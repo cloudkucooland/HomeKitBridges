@@ -41,24 +41,25 @@ func main() {
 			sigch := make(chan os.Signal, 3)
 			signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
 
+			refresh := make(chan bool, 3)
+
 			// start the UDP listener before anything else
 			listenctx, listencancel := context.WithCancel(context.Background())
-			var lwg sync.WaitGroup
-			lwg.Add(1)
-			go func(listenctx context.Context) {
-				defer lwg.Done()
-				kasahkbridge.Listener(listenctx)
-			}(listenctx)
+			var listenwaitgroup sync.WaitGroup
+			listenwaitgroup.Add(1)
+			go func() {
+				defer listenwaitgroup.Done()
+				kasahkbridge.Listener(listenctx, refresh)
+			}()
 
 			// discover & provision the devices
-			refresh := make(chan bool)
 			if err = kasahkbridge.Startup(listenctx, refresh); err != nil {
 				log.Info.Panic(err)
 			}
 
 			// does not change over time
 			bridge := kasahkbridge.Bridge()
-			var hapwg sync.WaitGroup
+			var hapwaitgroup sync.WaitGroup
 
 		DONE:
 			for {
@@ -66,41 +67,38 @@ func main() {
 				devices := kasahkbridge.Devices()
 				// kasahkbridge.BridgeAddState()
 				log.Info.Printf("serving %d kasa devices", len(devices))
-				s, err := hap.NewServer(hap.NewFsStore(fulldir), bridge, devices...)
+				hapserver, err := hap.NewServer(hap.NewFsStore(fulldir), bridge, devices...)
 				if err != nil {
 					log.Info.Panic(err)
 				}
 
 				// serve HomeKit
-				lwg.Add(1)
-				hapwg.Add(1)
+				hapwaitgroup.Add(1)
 				go func(hapctx context.Context) {
-					defer lwg.Done()
-					defer hapwg.Done()
-					s.ListenAndServe(hapctx)
+					defer hapwaitgroup.Done()
+					hapserver.ListenAndServe(hapctx)
 				}(hapctx)
 
 				select {
 				case <-refresh:
 					log.Info.Printf("new device discovered, restarting")
 					hapcancel()
-					hapwg.Wait()
+					hapwaitgroup.Wait()
 					// loop back around, getting updated device list
 				case <-listenctx.Done():
 					log.Info.Printf("shutdown: context canceled")
 					hapcancel()
-					hapwg.Wait()
+					hapwaitgroup.Wait()
 					break DONE
 				case sig := <-sigch:
 					log.Info.Printf("shutdown requested by signal: %s", sig)
 					hapcancel()
-					hapwg.Wait()
+					hapwaitgroup.Wait()
 					break DONE
 				}
 			}
 			listencancel()
-
-			lwg.Wait()
+			listenwaitgroup.Wait()
 			return nil
 		},
 	}

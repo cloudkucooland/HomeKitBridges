@@ -17,7 +17,6 @@ import (
 )
 
 var kasas map[string]kasaDevice
-var refresh chan bool
 var bufsize int = 2048
 var packetconn *net.UDPConn
 var broadcasts []net.IP
@@ -33,7 +32,7 @@ type kasaDevice interface {
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
-func Listener(ctx context.Context) {
+func Listener(ctx context.Context, refresh chan bool) {
 	var err error
 	packetconn, err = net.ListenUDP("udp", &net.UDPAddr{IP: nil, Port: 0})
 	if err != nil {
@@ -123,9 +122,8 @@ func Listener(ctx context.Context) {
 }
 
 // Startup
-func Startup(ctx context.Context, r chan bool) error {
+func Startup(ctx context.Context, refresh chan bool) error {
 	kasas = make(map[string]kasaDevice)
-	refresh = r
 
 	kasa.SetLogger(log.Info)
 
@@ -134,13 +132,13 @@ func Startup(ctx context.Context, r chan bool) error {
 	// wait for the Listener to get going -- use a proper sync...
 	time.Sleep(1 * time.Second)
 
-	to, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	timeout, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	discover()
 
 FIRST:
 	for {
 		select {
-		case <-to.Done():
+		case <-timeout.Done():
 			break FIRST
 		case <-refresh:
 			// drain the buffer during initial discovery
