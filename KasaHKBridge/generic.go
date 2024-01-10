@@ -69,22 +69,8 @@ func id(g *generic) uint64 {
 
 func (g *generic) finalize() {
 	// set the ID so the device remains consistent in homekit across reboots
-	i := id(g)
-	g.A.Id = i
-
-	// add handler: if the device is renamed in homekit, update the device's internal name to match
-	g.A.Info.Name.OnValueRemoteUpdate(func(newname string) {
-		log.Info.Printf("setting alias to [%s]", newname)
-		d, err := kasa.NewDevice(g.ip.String())
-		if err != nil {
-			log.Info.Println(err.Error())
-			return
-		}
-		if err := d.SetAlias(newname); err != nil {
-			log.Info.Println(err.Error())
-			return
-		}
-	})
+	// i := id(g)
+	g.A.Id = id(g)
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
