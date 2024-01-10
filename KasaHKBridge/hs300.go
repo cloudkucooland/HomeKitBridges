@@ -2,6 +2,7 @@ package kasahkbridge
 
 import (
 	"net"
+	"strconv"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -25,28 +26,23 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 	acc.A = accessory.New(info, accessory.TypeOutlet)
 	acc.finalize()
 
-	os := int(acc.Sysinfo.NumChildren)
-	acc.Outlets = make([]*hs300outletSvc, os, os+1)
+	outlets := int(acc.Sysinfo.NumChildren)
+	acc.Outlets = make([]*hs300outletSvc, outlets, outlets+1)
 
-	for i := 0; i < os; i++ {
+	for i := 0; i < outlets; i++ {
 		o := NewHS300OutletSvc()
 		acc.AddS(o.S)
 		o.On.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
-
-		n := characteristic.NewName()
-		n.SetValue(acc.Sysinfo.Children[i].Alias)
-		o.AddC(n.C)
+		o.Name.SetValue(acc.Sysinfo.Children[i].Alias)
+		o.AccIdentifier.SetValue(acc.Sysinfo.Children[i].ID)
+		if dx, err := strconv.Atoi(acc.Sysinfo.Children[i].ID); err != nil {
+			log.Info.Println(err.Error())
+		} else {
+			o.ID.SetValue(dx)
+		}
 
 		idx := i // local scope
-		n.OnValueRemoteUpdate(func(newname string) {
-			log.Info.Printf("setting alias to [%s]", newname)
-			if err := setChildRelayAlias(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newname); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-		})
-
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("setting [%s][%d] (%s) to [%t] from HS300 handler", acc.Sysinfo.Alias, idx, acc.Sysinfo.Children[idx].ID, newstate)
 			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
@@ -67,8 +63,11 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 type hs300outletSvc struct {
 	*service.S
 
-	On          *characteristic.On
-	OutletInUse *characteristic.OutletInUse
+	On            *characteristic.On
+	OutletInUse   *characteristic.OutletInUse
+	Name          *characteristic.Name
+	ID            *characteristic.Identifier
+	AccIdentifier *characteristic.AccessoryIdentifier
 
 	Volt *volt
 	Watt *watt
@@ -84,6 +83,15 @@ func NewHS300OutletSvc() *hs300outletSvc {
 
 	svc.OutletInUse = characteristic.NewOutletInUse()
 	svc.AddC(svc.OutletInUse.C)
+
+	svc.Name = characteristic.NewName()
+	svc.AddC(svc.Name.C)
+
+	svc.ID = characteristic.NewIdentifier()
+	svc.AddC(svc.ID.C)
+
+	svc.AccIdentifier = characteristic.NewAccessoryIdentifier()
+	svc.AddC(svc.AccIdentifier.C)
 
 	svc.Volt = NewVolt()
 	svc.AddC(svc.Volt.C)
@@ -110,10 +118,13 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 			h.Outlets[i].OutletInUse.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 		}
 
+		if h.Outlets[i].Name.Value() != k.GetSysinfo.Sysinfo.Children[i].Alias {
+			log.Info.Printf("updating HomeKit: [%s][%d] name %s", k.GetSysinfo.Sysinfo.Alias, i, k.GetSysinfo.Sysinfo.Children[i].Alias)
+		}
+
 		// request emeter data for each outlet
-		err := getEmeterChild(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID)
-		if err != nil {
-			return
+		if err := getEmeterChild(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID); err != nil {
+			log.Info.Println(err.Error())
 		}
 	}
 }

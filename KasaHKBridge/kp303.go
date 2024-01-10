@@ -39,28 +39,19 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		n.SetValue(acc.Sysinfo.Children[i].Alias)
 		o.AddC(n.C)
 
-		dx, err := strconv.Atoi(acc.Sysinfo.Children[i].ID)
-		if err != nil {
+		if dx, err := strconv.Atoi(acc.Sysinfo.Children[i].ID); err != nil {
 			log.Info.Println(err.Error())
 		} else {
 			id := characteristic.NewIdentifier()
 			id.SetValue(dx)
 			o.AddC(id.C)
-
-			sli := characteristic.NewIdentifier()
-			sli.SetValue(dx)
-			o.AddC(sli.C)
 		}
 
-		idx := i // local scope
-		n.OnValueRemoteUpdate(func(newname string) {
-			log.Info.Printf("setting alias to [%s]", newname)
-			if err := setChildRelayAlias(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newname); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-		})
+		ai := characteristic.NewAccessoryIdentifier()
+		ai.SetValue(acc.Sysinfo.Children[i].ID)
+		o.AddC(ai.C)
 
+		idx := i // local scope
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("setting [%s][%d] (%s) to [%t] from KP303 handler", acc.Sysinfo.Alias, idx, acc.Sysinfo.Children[idx].ID, newstate)
 			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
