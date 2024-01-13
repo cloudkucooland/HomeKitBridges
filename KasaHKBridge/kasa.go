@@ -29,6 +29,7 @@ type kasaDevice interface {
 	getLastUpdate() time.Time
 	unreachable()
 	getIP() net.IP
+	getAlias() string
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
@@ -72,7 +73,7 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 			var kd kasa.KasaDevice
 			if err = json.Unmarshal(d, &kd); err != nil {
-				log.Info.Printf("unmarshal failed: %s\n", err.Error())
+				log.Info.Printf("unmarshal failed: %s", err.Error())
 				continue
 			}
 
@@ -105,13 +106,16 @@ func Listener(ctx context.Context, refresh chan bool) {
 					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS300(kd, addr.IP)
 					refresh <- true
 				default:
-					log.Info.Printf("unknown device type (%s) %s\n", addr.IP.String(), d)
+					log.Info.Printf("unknown device type (%s) %s", addr.IP.String(), d)
 				}
 			} else {
 				k.update(kd, addr.IP)
 			}
 		}
 	}()
+
+	// let the poller know we are ready -- send dummy 0th ping
+	refresh <- true
 
 	select {
 	case <-ctx.Done():
@@ -129,8 +133,8 @@ func Startup(ctx context.Context, refresh chan bool) error {
 
 	broadcasts, _ = kasa.BroadcastAddresses()
 
-	// wait for the Listener to get going -- use a proper sync...
-	time.Sleep(1 * time.Second)
+	// wait for the Listener to get going -- 0th ping is a dummy
+	<-refresh
 
 	timeout, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	discover()
@@ -141,11 +145,11 @@ FIRST:
 		case <-timeout.Done():
 			break FIRST
 		case <-refresh:
-			// drain the buffer during initial discovery
+			// drain any additional refresh messages that happened before the discovery timeout
 		}
 	}
 
-	log.Info.Printf("Initial discovery complete, found %d devices\n", len(kasas))
+	log.Info.Printf("Initial discovery complete, found %d devices", len(kasas))
 	cancel()
 
 	// start the routine poller
@@ -175,6 +179,7 @@ func poller(ctx context.Context) {
 		b := n.Add(0 - (5 * pollInterval * time.Second))
 		for _, k := range kasas {
 			if k.getLastUpdate().Before(b) {
+				log.Info.Printf("marking [%s] unreachable", k.getAlias())
 				k.unreachable()
 			}
 		}
@@ -194,9 +199,8 @@ func discover() {
 	payload := kasa.Scramble(kasa.CmdGetSysinfo)
 
 	for _, b := range broadcasts {
-		_, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: b, Port: 9999})
-		if err != nil {
-			log.Info.Printf("discovery failed: %s\n", err.Error())
+		if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: b, Port: 9999}); err != nil {
+			log.Info.Printf("discovery failed: %s", err.Error())
 			return
 		}
 	}
@@ -211,7 +215,7 @@ func setRelayState(ip net.IP, newstate bool) error {
 	payload := kasa.Scramble(cmd)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
-		log.Info.Printf("set relay state failed: %s\n", err.Error())
+		log.Info.Printf("set relay state failed: %s", err.Error())
 		return err
 	}
 
@@ -223,7 +227,7 @@ func setBrightness(ip net.IP, brightness int) error {
 	payload := kasa.Scramble(cmd)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
-		log.Info.Printf("set brightness failed: %s\n", err.Error())
+		log.Info.Printf("set brightness failed: %s", err.Error())
 		return err
 	}
 
@@ -268,25 +272,8 @@ func setChildRelayState(ip net.IP, parent, child string, newstate bool) error {
 	return nil
 }
 
-func setChildRelayAlias(ip net.IP, parent, child, alias string) error {
-	full := fmt.Sprintf("%s%s", parent, child)
-
-	k, err := kasa.NewDevice(ip.String())
-	if err != nil {
-		log.Info.Printf(err.Error())
-		return err
-	}
-	if err := k.SetChildAlias(full, alias); err != nil {
-		log.Info.Printf(err.Error())
-		return err
-	}
-	return nil
-}
-
 func getEmeter(ip net.IP) error {
-
-	cmd := fmt.Sprintf(kasa.CmdGetEmeter)
-	payload := kasa.Scramble(cmd)
+	payload := kasa.Scramble(kasa.CmdGetEmeter)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
 		log.Info.Printf("get emeter failed: %s", err.Error())
@@ -311,6 +298,8 @@ func getEmeterChild(ip net.IP, parent, child string) error {
 }
 
 func updateEmeter(kd kasa.KasaDevice, ip net.IP) error {
+	// why am I walking the list of devices if I already know?
+	// because we only have the emeter data, not the full kd
 	for _, k := range kasas {
 		if k.getIP().String() == ip.String() {
 			k.updateEmeter(kd.Emeter.Realtime)

@@ -27,7 +27,6 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 
 	acc.Outlet = NewHS103Svc()
 	acc.AddS(acc.Outlet.S)
-	// acc.AddS(acc.KasaStatus.S)
 
 	acc.Outlet.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	acc.Outlet.OutletInUse.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
@@ -104,7 +103,7 @@ func (h *HS103) update(k kasa.KasaDevice, ip net.IP) {
 	}
 
 	if h.Outlet.ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
-		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s\n", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
+		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Outlet.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
 			d, _ := kasa.NewDevice(h.ip.String())

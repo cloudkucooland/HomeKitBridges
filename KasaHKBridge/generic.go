@@ -18,7 +18,7 @@ type generic struct {
 	lastUpdate time.Time // last time the device responded (move to Status)
 	*accessory.A
 
-	KasaStatus *statusSvc   // a service for displaying status info
+	KasaStatus *StatusSvc   // a service for displaying status info
 	ip         net.IP       // would probably be better to use string
 	Sysinfo    kasa.Sysinfo // contents of the last response from the device
 }
@@ -32,6 +32,16 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
+	k, _ := kasa.NewDevice(g.ip.String())
+
+	s, err := k.GetWIFIStatus()
+	if err != nil {
+		// really non-responsive -- remove it from the list
+		log.Info.Printf(err.Error())
+		return
+	}
+	log.Info.Println(s)
+
 	// figure out how to tell homekit that this device has gone away....
 	// probably under the bridge accessory
 }
@@ -69,18 +79,18 @@ func id(g *generic) uint64 {
 
 func (g *generic) finalize() {
 	// set the ID so the device remains consistent in homekit across reboots
-	// i := id(g)
 	g.A.Id = id(g)
+	// g.AddS(g.KasaStatus.S)
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 	if g.ip.String() != ip.String() {
-		log.Info.Printf("updating ip address: [%s] -> [%s] (%s)\n", g.ip, ip, k.GetSysinfo.Sysinfo.Alias)
+		log.Info.Printf("updating ip address: [%s] -> [%s] (%s)", g.ip, ip, k.GetSysinfo.Sysinfo.Alias)
 		g.ip = ip
 	}
 
 	if g.Sysinfo.Alias != k.GetSysinfo.Sysinfo.Alias {
-		log.Info.Printf("renaming: [%s] -> [%s]\n", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Alias)
+		log.Info.Printf("renaming: [%s] -> [%s]", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Alias)
 		g.Sysinfo.Alias = k.GetSysinfo.Sysinfo.Alias
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
@@ -107,18 +117,18 @@ func kpm2hpm(kasaMode string) int {
 	return i
 }
 
-type statusSvc struct {
+type StatusSvc struct {
 	*service.S
 
 	Name *characteristic.Name
 	RSSI *rssi
 }
 
-func NewStatusSvc() *statusSvc {
-	svc := statusSvc{}
-	svc.S = service.New("E8800001")
+func NewStatusSvc() *StatusSvc {
+	svc := StatusSvc{}
+	svc.S = service.New("E881")
 	svc.S.Primary = false
-	svc.S.Hidden = true
+	// svc.S.Hidden = true
 
 	svc.Name = characteristic.NewName()
 	svc.Name.SetValue("Kasa Status")
@@ -136,4 +146,8 @@ func (g *generic) updateEmeter(e kasa.EmeterRealtime) {
 
 func (g *generic) getIP() net.IP {
 	return g.ip
+}
+
+func (g *generic) getAlias() string {
+	return g.Sysinfo.Alias
 }

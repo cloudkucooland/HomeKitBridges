@@ -63,8 +63,6 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		acc.Outlets[i] = o
 	}
 
-	// acc.AddS(acc.KasaStatus.S)
-
 	return &acc
 }
 

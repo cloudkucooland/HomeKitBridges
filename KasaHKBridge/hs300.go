@@ -55,8 +55,6 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		acc.Outlets[i] = o
 	}
 
-	// acc.AddS(acc.KasaStatus.S)
-
 	return &acc
 }
 

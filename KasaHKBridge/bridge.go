@@ -54,7 +54,7 @@ type pollRate struct {
 func newPollRate() *pollRate {
 	c := characteristic.NewInt("E8802")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	c.Description = "Poll Rate"
 	c.SetMinValue(10)
 	c.SetMaxValue(3600)

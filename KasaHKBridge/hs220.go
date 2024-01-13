@@ -27,7 +27,6 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb = NewHS220Svc(ip)
 	acc.AddS(acc.Lightbulb.S)
-	// acc.AddS(acc.KasaStatus.S)
 
 	acc.Lightbulb.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	acc.Lightbulb.Brightness.SetValue(int(k.GetSysinfo.Sysinfo.Brightness))
