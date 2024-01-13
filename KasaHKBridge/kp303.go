@@ -24,7 +24,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
-	acc.finalize()
+	acc.setID()
 
 	os := int(acc.Sysinfo.NumChildren)
 	acc.Outlets = make([]*service.Outlet, os, os+1)

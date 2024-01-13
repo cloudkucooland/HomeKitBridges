@@ -23,7 +23,7 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
-	acc.finalize()
+	acc.setID()
 
 	acc.Outlet = NewHS103Svc()
 	acc.AddS(acc.Outlet.S)

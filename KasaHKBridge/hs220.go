@@ -23,7 +23,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeLightbulb)
-	acc.finalize()
+	acc.setID()
 
 	acc.Lightbulb = NewHS220Svc(ip)
 	acc.AddS(acc.Lightbulb.S)

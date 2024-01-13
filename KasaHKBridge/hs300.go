@@ -24,7 +24,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
-	acc.finalize()
+	acc.setID()
 
 	outlets := int(acc.Sysinfo.NumChildren)
 	acc.Outlets = make([]*hs300outletSvc, outlets, outlets+1)

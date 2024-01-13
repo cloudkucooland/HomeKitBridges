@@ -24,7 +24,7 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeSwitch)
-	acc.finalize()
+	acc.setID()
 
 	acc.Switch = NewHS200Svc()
 	acc.AddS(acc.Switch.S)

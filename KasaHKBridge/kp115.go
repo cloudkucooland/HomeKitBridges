@@ -24,7 +24,7 @@ func NewKP115(k kasa.KasaDevice, ip net.IP) *KP115 {
 
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
-	acc.finalize()
+	acc.setID()
 
 	acc.Outlet = NewKP115Svc()
 	acc.AddS(acc.Outlet.S)
