@@ -34,7 +34,7 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 	acc.Switch.ProgramMode.SetValue(pm)
 
 	acc.Switch.On.OnValueRemoteUpdate(func(newstate bool) {
-		log.Info.Printf("setting [%s] to [%t] from HS200 handler", acc.Sysinfo.Alias, newstate)
+		log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(newstate))
 		if err := setRelayState(acc.ip, newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -42,7 +42,7 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 	})
 
 	acc.Switch.SetDuration.OnValueRemoteUpdate(func(when int) {
-		log.Info.Printf("setting duration [%s] to [%d] from HS220 handler", acc.Sysinfo.Alias, when)
+		log.Info.Printf("setting duration [%s] to [%d]", acc.Sysinfo.Alias, when)
 		if err := setCountdown(acc.ip, !acc.Switch.On.Value(), when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -91,7 +91,7 @@ func (h *HS200) update(k kasa.KasaDevice, ip net.IP) {
 	h.genericUpdate(k, ip)
 
 	if h.Switch.On.Value() != (k.GetSysinfo.Sysinfo.RelayState > 0) {
-		log.Info.Printf("updating HomeKit: [%s] relay %d", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RelayState)
+		log.Info.Printf("[%s] %s", k.GetSysinfo.Sysinfo.Alias, intToState(k.GetSysinfo.Sysinfo.RelayState))
 		h.Switch.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	}
 

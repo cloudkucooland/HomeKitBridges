@@ -53,7 +53,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 		idx := i // local scope
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
-			log.Info.Printf("setting [%s][%d] (%s) to [%t] from KP303 handler", acc.Sysinfo.Alias, idx, acc.Sysinfo.Children[idx].ID, newstate)
+			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))
 			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
 				log.Info.Println(err.Error())
 				return
@@ -71,7 +71,7 @@ func (h *KP303) update(k kasa.KasaDevice, ip net.IP) {
 
 	for i := 0; i < len(h.Outlets); i++ {
 		if h.Outlets[i].On.Value() != (k.GetSysinfo.Sysinfo.Children[i].RelayState > 0) {
-			log.Info.Printf("updating HomeKit: [%s][%d] relay %d", k.GetSysinfo.Sysinfo.Alias, i, k.GetSysinfo.Sysinfo.Children[i].RelayState)
+			log.Info.Printf("[%s][%d] %s", k.GetSysinfo.Sysinfo.Alias, i, intToState(k.GetSysinfo.Sysinfo.Children[i].RelayState))
 			h.Outlets[i].On.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 			h.Outlets[i].OutletInUse.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 		}

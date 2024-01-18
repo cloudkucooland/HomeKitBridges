@@ -179,7 +179,6 @@ func poller(ctx context.Context) {
 		b := n.Add(0 - (5 * pollInterval * time.Second))
 		for _, k := range kasas {
 			if k.getLastUpdate().Before(b) {
-				log.Info.Printf("marking [%s] unreachable", k.getAlias())
 				k.unreachable()
 			}
 		}

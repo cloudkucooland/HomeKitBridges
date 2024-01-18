@@ -31,18 +31,26 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
+	log.Info.Printf("[%s] has not responded", g.Sysinfo.Alias)
 	k, _ := kasa.NewDevice(g.ip.String())
 
+	// try conecting using a TCP connection to see if it is really down or just dropping UDP
 	s, err := k.GetWIFIStatus()
 	if err != nil {
-		// really non-responsive -- remove it from the list
+		// really is non-responsive -- remove it from the list?
 		log.Info.Printf(err.Error())
 		return
 	}
-	log.Info.Println(s)
 
-	// figure out how to tell homekit that this device has gone away....
-	// probably under the bridge accessory
+	// log the signal strength to look for patterns
+	log.Info.Printf("[%s] RSSI: %d", g.Sysinfo.Alias, s.RSSI)
+
+	/* if s.RSSI == 0 {
+		log.Info.Printf("[%s] sending reboot", g.Sysinfo.Alias)
+		if err := k.Reboot(); err != nil {
+			log.Info.Printf(err.Error())
+		}
+	} */
 }
 
 func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
@@ -90,8 +98,10 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
 
-	// log.Info.Printf("[%s] RSSI: [%d]", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RSSI)
 	g.RSSI.SetValue(int(k.GetSysinfo.Sysinfo.RSSI))
+	if k.GetSysinfo.Sysinfo.RSSI < -95 {
+		log.Info.Printf("[%s] weak WIFI signal: [%d]", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.RSSI)
+	}
 	g.lastUpdate = time.Now()
 }
 
@@ -122,4 +132,18 @@ func (g *generic) getIP() net.IP {
 
 func (g *generic) getAlias() string {
 	return g.Sysinfo.Alias
+}
+
+func intToState(i uint8) string {
+	if i == 1 {
+		return "On"
+	}
+	return "Off"
+}
+
+func boolToState(b bool) string {
+	if b {
+		return "On"
+	}
+	return "Off"
 }
