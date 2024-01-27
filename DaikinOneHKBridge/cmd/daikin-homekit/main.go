@@ -14,6 +14,8 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/redgoose/daikin-skyport"
+    "github.com/cloudkucooland/HomeKitBridges/DaikinOneHKBridge"
+
 )
 
 func main() {
@@ -53,7 +55,7 @@ func main() {
 				log.Info.Panic("unable to get config directory", dir)
 			}
 			cfd := filepath.Join(fulldir, file)
-			conf, err := loadConfig(cfd)
+			conf, err := dhkb.LoadConfig(cfd)
 			if err != nil {
 				log.Info.Panic(err.Error())
 			}
@@ -73,7 +75,7 @@ func main() {
 			}
 
 			// build the HAP device
-			thermostat := newDaikinOne(d, device)
+			thermostat := dhkb.NewDaikinOne(d, device)
 
 			// add thermostat to HomeKit server
 			s, err := hap.NewServer(hap.NewFsStore(fulldir), thermostat.A)
@@ -85,14 +87,14 @@ func main() {
 			ctx, cancel := context.WithCancel(context.Background())
 
 			// update the thermostat with data from Daikin cloud -- move this into the devices.go file, should be per device
-			go func(ctx context.Context, thermostat *daikinAccessory) {
+			go func(ctx context.Context, thermostat *dhkb.DaikinAccessory) {
 				ticker := time.NewTicker(180 * time.Second)
 				defer ticker.Stop()
 
 				for {
 					select {
 					case <-ticker.C:
-						update(thermostat, d)
+						dhkb.Update(thermostat, d)
 					case <-ctx.Done():
 						return
 					}
