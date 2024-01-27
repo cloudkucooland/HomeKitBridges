@@ -190,7 +190,7 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 	}
 
 	if h.Lightbulb.Brightness.Value() != int(k.GetSysinfo.Sysinfo.Brightness) {
-		log.Info.Printf("updating HomeKit: [%s] brightness %d", k.GetSysinfo.Sysinfo.Alias, int(k.GetSysinfo.Sysinfo.Brightness))
+		log.Info.Printf("[%s] %d%%", k.GetSysinfo.Sysinfo.Alias, int(k.GetSysinfo.Sysinfo.Brightness))
 		h.Lightbulb.Brightness.SetValue(int(k.GetSysinfo.Sysinfo.Brightness))
 	}
 
@@ -198,7 +198,6 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Lightbulb.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
-			// d, _ := kasa.NewDevice(h.ip.String())
 			_ = d.ClearCountdownRules()
 		}
 	}
