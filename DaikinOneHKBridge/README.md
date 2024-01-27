@@ -8,11 +8,9 @@ Install
 
 `go install github.com/cloudkucooland/HomeKitBridges/DaikinOneHKBridge@latest`
 
-`mv ~/go/main ~/go/daikin-homekit` (because I need to fix this...)
-
 `sudo mkdir -p /var/db/HomeKitBridges/Daikin/`
 
-`sudo chown -R \`whoami\` /var/db/HomeKitBridges\`
+``sudo chown -R `whoami` /var/db/HomeKitBridges``
 
 Edit /var/db/HomeKitBridges/Daikin/daikin.json file to contain your API info (vi, nano, whatever editor you use)
 
