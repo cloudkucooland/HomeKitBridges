@@ -47,6 +47,8 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 	go func() {
 		for {
+			// should I select on ReadFromUDP and ctx.Done()
+			// to remove the (harmless) error notice at shutdown?
 			n, addr, err := packetconn.ReadFromUDP(buffer)
 			if err != nil {
 				log.Info.Println(err.Error())
@@ -56,12 +58,11 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 			d := kasa.Unscramble(buffer[:n])
 			s := string(d)
-			// log.Info.Println(s)
 
+			// ignore success messages
 			if s == `{"system":{"set_relay_state":{"err_code":0}}}` {
 				continue
 			}
-
 			if s == `{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}` {
 				continue
 			}
