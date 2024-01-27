@@ -69,7 +69,7 @@ type fadeOnTime struct {
 func NewFadeOnTime() *fadeOnTime {
 	c := characteristic.NewInt("E8700110")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	c.Description = "Fade On Time"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
@@ -85,7 +85,7 @@ type fadeOffTime struct {
 func NewFadeOffTime() *fadeOffTime {
 	c := characteristic.NewInt("E8700111")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	c.Description = "Fade Off Time"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
@@ -101,7 +101,7 @@ type gentleOnTime struct {
 func NewGentleOnTime() *gentleOnTime {
 	c := characteristic.NewInt("E8700112")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	c.Description = "Gentle On Time"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
@@ -117,7 +117,7 @@ type gentleOffTime struct {
 func NewGentleOffTime() *gentleOffTime {
 	c := characteristic.NewInt("E8700113")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	c.Description = "Gentle Off Time"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
@@ -164,9 +164,9 @@ type rssi struct {
 func NewRSSI() *rssi {
 	c := characteristic.NewInt("E8700116")
 	c.Format = characteristic.FormatInt32
-	c.Permissions = []string{characteristic.PermissionRead} // , characteristic.PermissionEvents}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Kasa RSSI"
-	c.SetMinValue(-100)
+	c.SetMinValue(-110)
 	c.SetMaxValue(0)
 	c.SetValue(-50)
 
