@@ -1,4 +1,4 @@
-package main
+package dhkb
 
 import (
 	"fmt"
@@ -10,15 +10,15 @@ import (
 	"github.com/brutella/hap/log"
 )
 
-type daikinAccessory struct {
+type DaikinAccessory struct {
 	*accessory.A
 	Thermostat *daikinThermostat
 	Fan        *daikinFan
 	Filter     *daikinFilter
 }
 
-func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
-	a := daikinAccessory{}
+func NewDaikinOne(da *daikin.Daikin, details *daikin.Device) *DaikinAccessory {
+	a := DaikinAccessory{}
 
 	info := accessory.Info{
 		Name:         details.Name,
@@ -230,7 +230,7 @@ func newDaikinOne(da *daikin.Daikin, details *daikin.Device) *daikinAccessory {
 	return &a
 }
 
-func update(a *daikinAccessory, d *daikin.Daikin) error {
+func Update(a *DaikinAccessory, d *daikin.Daikin) error {
 	status, err := d.GetDeviceInfo(a.Info.SerialNumber.Value())
 	if err != nil {
 		return err

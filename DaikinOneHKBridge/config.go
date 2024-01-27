@@ -1,4 +1,4 @@
-package main
+package dhkb
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ type Config struct {
 	Password string
 }
 
-func loadConfig(filename string) (*Config, error) {
+func LoadConfig(filename string) (*Config, error) {
 	conf := Config{
 		Password: "mypassword",
 		Email:    "test@test.com",

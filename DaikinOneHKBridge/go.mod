@@ -1,4 +1,4 @@
-module main
+module github.com/cloudkucooland/HomeKitBridges/DaikinOneHKBridge
 
 go 1.20
 

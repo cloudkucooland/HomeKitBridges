@@ -1,4 +1,4 @@
-package main
+package dhkb
 
 import (
 	// "github.com/brutella/hap/accessory"
