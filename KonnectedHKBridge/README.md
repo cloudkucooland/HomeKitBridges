@@ -54,7 +54,7 @@ At this point it will attempt to discover a device. For now you must manually pr
 
 (note to self, change Password to Token everywhere, just to keep it consistent)
 
-curl -X PUT -H "Content-Type: application/json" -d '{"endpoint_type":"rest","endpoint":"http://{server IP:port}/konnected","token":"password", "sensors":[{"pin":1},{"pin":2},{"pin":5},{"pin":6},{"pin":7}] }' http://{konnected ip:port from Konnected.app}/settings
+`curl -X PUT -H "Content-Type: application/json" -d '{"endpoint_type":"rest","endpoint":"http://`SERVER IP:PORT`/konnected","token":"password", "sensors":[{"pin":1},{"pin":2},{"pin":5},{"pin":6},{"pin":7}] }' http://`IP:PORT`/settings`
 
 Install into HomeKit
 --------------------
