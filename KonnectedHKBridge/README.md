@@ -48,7 +48,7 @@ The Password is the token to be set during provisioning (see below).
 
 Start the process
 
-`~/go/bin/khkb`
+`~/go/bin/konnected-homekit`
 
 At this point it will attempt to discover a device. For now you must manually provision the device using CURL. The server process must be running with the Mac and Password/token of the device configured. (see historical note below as to why it doesn't yet auto-provision)
 
@@ -82,7 +82,7 @@ After=network-online.target
 
 [Service]
 User=scot
-ExecStart=/home/scot/go/bin/khkb
+ExecStart=/home/scot/go/bin/konnected-homekit
 Type=exec
 Restart=on-failure
 RestartSec=1
