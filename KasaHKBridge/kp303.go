@@ -1,6 +1,7 @@
 package kasahkbridge
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
@@ -39,16 +40,17 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		n.SetValue(acc.Sysinfo.Children[i].Alias)
 		o.AddC(n.C)
 
-		if dx, err := strconv.Atoi(acc.Sysinfo.Children[i].ID); err != nil {
+		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[i].ID)
+		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
 			id := characteristic.NewIdentifier()
-			id.SetValue(dx)
+			id.SetValue(int(dx))
 			o.AddC(id.C)
 		}
 
 		ai := characteristic.NewAccessoryIdentifier()
-		ai.SetValue(acc.Sysinfo.Children[i].ID)
+		ai.SetValue(id)
 		o.AddC(ai.C)
 
 		idx := i // local scope

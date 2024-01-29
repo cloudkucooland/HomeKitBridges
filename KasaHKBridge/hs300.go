@@ -1,6 +1,7 @@
 package kasahkbridge
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
@@ -35,11 +36,13 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		o.On.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
 		o.Name.SetValue(acc.Sysinfo.Children[i].Alias)
-		o.AccIdentifier.SetValue(acc.Sysinfo.Children[i].ID)
-		if dx, err := strconv.Atoi(acc.Sysinfo.Children[i].ID); err != nil {
+		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[i].ID)
+		o.AccIdentifier.SetValue(id)
+		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
-			o.ID.SetValue(dx)
+			// log.Info.Printf("Outlet ID: %d", int(dx))
+			o.ID.SetValue(int(dx))
 		}
 
 		idx := i // local scope
@@ -87,9 +90,11 @@ func NewHS300OutletSvc() *hs300outletSvc {
 
 	svc.ID = characteristic.NewIdentifier()
 	svc.AddC(svc.ID.C)
+	svc.ID.SetValue(0)
 
 	svc.AccIdentifier = characteristic.NewAccessoryIdentifier()
 	svc.AddC(svc.AccIdentifier.C)
+	svc.AccIdentifier.SetValue("0")
 
 	svc.Volt = NewVolt()
 	svc.AddC(svc.Volt.C)
