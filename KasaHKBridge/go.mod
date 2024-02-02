@@ -3,8 +3,8 @@ module github.com/cloudkucooland/HomeKitBridges/KasaHKBridge
 go 1.20
 
 require (
-	github.com/brutella/hap v0.0.28
-	github.com/cloudkucooland/go-kasa v0.0.0-20240116031858-e5d4ae8215b2
+	github.com/brutella/hap v0.0.29
+	github.com/cloudkucooland/go-kasa v0.0.0-20240130221153-be191d85631f
 	github.com/urfave/cli/v2 v2.27.1
 )
 
@@ -23,4 +23,5 @@ require (
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
+	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 )

@@ -67,6 +67,7 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 		Model:        k.Model,
 		Firmware:     k.SWVersion,
 	}
+
 	return info
 }
 
@@ -75,15 +76,29 @@ func (g *generic) setID() {
 	mac, err := hex.DecodeString(g.Sysinfo.DeviceID[:12])
 	if err != nil {
 		log.Info.Printf("weird kasa devid: %s", err.Error())
-	} else {
-		var ID uint64
-		for k, v := range mac {
-			ID += uint64(v) << (12 - k) * 8
-		}
-		g.A.Id = ID
+		return
 	}
-
+	var ID uint64
+	for k, v := range mac {
+		ID += uint64(v) << (12 - k) * 8
+	}
+	g.A.Id = ID
 	// g.A.Ss[0].AddC(g.RSSI.C)
+
+	g.A.Info.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	// add handler: if the device is renamed in homekit, update the device's internal name to match
+	g.A.Info.Name.OnValueRemoteUpdate(func(newname string) {
+		log.Info.Printf("setting alias to [%s]", newname)
+		d, err := kasa.NewDevice(g.ip.String())
+		if err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+		if err := d.SetAlias(newname); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+	})
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {

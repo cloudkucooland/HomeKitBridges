@@ -36,10 +36,17 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		o.On.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
 
+		// name doesn't display correctly
 		n := characteristic.NewName()
 		n.SetValue(acc.Sysinfo.Children[i].Alias)
 		o.AddC(n.C)
 
+		// ServiceLabelIndex seems to help keep the service correct across backup/restore, I think
+		sli := characteristic.NewServiceLabelIndex()
+		sli.SetValue(i)
+		o.AddC(sli.C)
+
+		// Identifier doesn't seem to much help - but doesn't hurt
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[i].ID)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
@@ -49,6 +56,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 			o.AddC(id.C)
 		}
 
+		// AccessoryIdentifier doesn't seem to much help - but doesn't hurt
 		ai := characteristic.NewAccessoryIdentifier()
 		ai.SetValue(id)
 		o.AddC(ai.C)

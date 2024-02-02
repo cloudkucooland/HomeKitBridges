@@ -44,6 +44,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 			// log.Info.Printf("Outlet ID: %d", int(dx))
 			o.ID.SetValue(int(dx))
 		}
+		o.SLI.SetValue(i)
 
 		idx := i // local scope
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
@@ -69,6 +70,7 @@ type hs300outletSvc struct {
 	Name          *characteristic.Name
 	ID            *characteristic.Identifier
 	AccIdentifier *characteristic.AccessoryIdentifier
+	SLI           *characteristic.ServiceLabelIndex
 
 	Volt *volt
 	Watt *watt
@@ -85,16 +87,23 @@ func NewHS300OutletSvc() *hs300outletSvc {
 	svc.OutletInUse = characteristic.NewOutletInUse()
 	svc.AddC(svc.OutletInUse.C)
 
+	// doesn't work (anymore, did in older versions of HAP)
 	svc.Name = characteristic.NewName()
 	svc.AddC(svc.Name.C)
 
+	// probably useless - but harmless
 	svc.ID = characteristic.NewIdentifier()
 	svc.AddC(svc.ID.C)
 	svc.ID.SetValue(0)
 
+	// probably useless - but harmless
 	svc.AccIdentifier = characteristic.NewAccessoryIdentifier()
 	svc.AddC(svc.AccIdentifier.C)
 	svc.AccIdentifier.SetValue("0")
+
+	// probably helpful
+	svc.SLI = characteristic.NewServiceLabelIndex()
+	svc.AddC(svc.SLI.C)
 
 	svc.Volt = NewVolt()
 	svc.AddC(svc.Volt.C)
