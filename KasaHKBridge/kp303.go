@@ -31,23 +31,20 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 	acc.Outlets = make([]*service.Outlet, os, os+1)
 
 	for i := 0; i < os; i++ {
+		idx := i // force local scope - especially for handler
+
 		o := service.NewOutlet()
 		acc.AddS(o.S)
-		o.On.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
-		o.OutletInUse.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
+		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
+		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 
 		// name doesn't display correctly
 		n := characteristic.NewName()
-		n.SetValue(acc.Sysinfo.Children[i].Alias)
+		n.SetValue(acc.Sysinfo.Children[idx].Alias)
 		o.AddC(n.C)
 
-		// ServiceLabelIndex seems to help keep the service correct across backup/restore, I think
-		sli := characteristic.NewServiceLabelIndex()
-		sli.SetValue(i)
-		o.AddC(sli.C)
-
 		// Identifier doesn't seem to much help - but doesn't hurt
-		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[i].ID)
+		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
@@ -61,7 +58,6 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		ai.SetValue(id)
 		o.AddC(ai.C)
 
-		idx := i // local scope
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))
 			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
@@ -70,7 +66,13 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 			}
 			o.OutletInUse.SetValue(newstate)
 		})
-		acc.Outlets[i] = o
+
+		// ServiceLabelIndex seems to help keep the service correct across backup/restore, I think
+		sli := characteristic.NewServiceLabelIndex()
+		sli.SetValue(idx)
+		o.AddC(sli.C)
+
+		acc.Outlets[idx] = o
 	}
 
 	return &acc
