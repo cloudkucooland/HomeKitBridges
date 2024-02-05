@@ -1,6 +1,8 @@
 package kasahkbridge
 
 import (
+	// "time"
+
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
 	// "github.com/brutella/hap/log"
@@ -16,7 +18,7 @@ func Bridge() *accessory.A {
 		SerialNumber: "1101",
 		Manufacturer: "cloudkucooland",
 		Model:        "kasa-homekit",
-		Firmware:     "0.0.2",
+		Firmware:     "0.0.3",
 	})
 	root.A.Id = 1
 
@@ -24,14 +26,20 @@ func Bridge() *accessory.A {
 	settings := settingsService{}
 	settings.S = service.New("E880") // custom
 
+	// doesn't seem to work
 	settings.Name = characteristic.NewName()
 	settings.Name.SetValue("Settings")
 	settings.S.AddC(settings.Name.C)
 
 	settings.PollRate = newPollRate()
 	settings.S.AddC(settings.PollRate.C)
+	// causes a hang
+	/* settings.PollRate.OnValueRemoteUpdate(func(newstate int) {
+			log.Info.Printf("setting poll rate: %d", newstate)
+			pollInterval = time.Second * time.Duration(newstate)
+	        // write to config file or other data store
+		}) */
 
-	// add the service to the root
 	root.A.AddS(settings.S)
 
 	return root.A
@@ -48,8 +56,6 @@ type settingsService struct {
 type pollRate struct {
 	*characteristic.Int
 }
-
-// TODO add handler so when it is changed the value is written to disk, loaded on startup
 
 func newPollRate() *pollRate {
 	c := characteristic.NewInt("E8802")
