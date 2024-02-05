@@ -139,9 +139,9 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 		if k.Buzzer != nil {
 			klist = append(klist, k.Buzzer.A)
 		}
-		if k.Trigger != nil {
+		/* if k.Trigger != nil {
 			klist = append(klist, k.Trigger.A)
-		}
+		} */
 	}
 
 	return klist, nil

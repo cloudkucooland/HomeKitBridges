@@ -15,9 +15,9 @@ type Konnected struct {
 	pins           map[uint8]interface{}
 	SecuritySystem *KonnectedSvc
 	Buzzer         *KonnectedBuzzer
-	Trigger        *KonnectedTrigger
-	ip             string
-	password       string
+	// Trigger        *KonnectedTrigger
+	ip       string
+	password string
 }
 
 func NewKonnected(details *system, d *Device) *Konnected {
@@ -136,7 +136,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 		}
 	})
 
-	acc.Trigger = NewKonnectedTrigger()
+	/* acc.Trigger = NewKonnectedTrigger()
 	acc.Trigger.Trigger.Trip.OnValueRemoteUpdate(func(targetState bool) {
 		if targetState {
 			log.Info.Println("externally triggered alarm")
@@ -163,7 +163,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 				log.Info.Println("not triggered, nothing to clear")
 			}
 		}
-	})
+	}) */
 	return &acc
 }
 
@@ -270,7 +270,7 @@ func NewKonnectedBuzzerSvc(name string) *KonnectedBuzzerSvc {
 	return &s
 }
 
-type KonnectedTrigger struct {
+/* type KonnectedTrigger struct {
 	*accessory.A
 
 	Trigger *KonnectedTriggerSvc
@@ -307,4 +307,4 @@ func NewKonnectedTriggerSvc() *KonnectedTriggerSvc {
 	s.AddC(s.Trip.C)
 
 	return &s
-}
+} */
