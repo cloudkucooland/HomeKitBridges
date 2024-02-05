@@ -28,6 +28,8 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 
 	acc.Switch = NewHS200Svc()
 	acc.AddS(acc.Switch.S)
+	acc.Switch.AddC(acc.generic.StatusActive.C)
+	acc.Switch.AddC(acc.generic.RSSI.C)
 
 	acc.Switch.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	pm := kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode)

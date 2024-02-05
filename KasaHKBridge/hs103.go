@@ -27,6 +27,8 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 
 	acc.Outlet = NewHS103Svc()
 	acc.AddS(acc.Outlet.S)
+	acc.Outlet.AddC(acc.generic.StatusActive.C)
+	acc.Outlet.AddC(acc.generic.RSSI.C)
 
 	acc.Outlet.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	acc.Outlet.OutletInUse.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)

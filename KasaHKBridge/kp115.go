@@ -28,6 +28,8 @@ func NewKP115(k kasa.KasaDevice, ip net.IP) *KP115 {
 
 	acc.Outlet = NewKP115Svc()
 	acc.AddS(acc.Outlet.S)
+	acc.Outlet.AddC(acc.generic.StatusActive.C)
+	acc.Outlet.AddC(acc.generic.RSSI.C)
 
 	// set intial state
 	acc.Outlet.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
