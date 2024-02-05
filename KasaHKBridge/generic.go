@@ -14,12 +14,12 @@ import (
 
 // included in all device types
 type generic struct {
-	lastUpdate time.Time // last time the device responded (move to Status)
 	*accessory.A
-	RSSI *rssi
-
-	ip      net.IP       // would probably be better to use string
-	Sysinfo kasa.Sysinfo // contents of the last response from the device
+	lastUpdate   time.Time // last time the device responded
+	RSSI         *rssi
+	StatusActive *characteristic.StatusActive
+	ip           net.IP       // would probably be better to use string
+	Sysinfo      kasa.Sysinfo // contents of the last response from the device
 }
 
 func (g *generic) getA() *accessory.A {
@@ -31,25 +31,23 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
+	if g.StatusActive.Value() == false {
+		return
+	}
+
 	log.Info.Printf("[%s] has not responded", g.Sysinfo.Alias)
-	k, _ := kasa.NewDevice(g.ip.String())
+	g.StatusActive.SetValue(false)
 
 	// try conecting using a TCP connection to see if it is really down or just dropping UDP
-	s, err := k.GetWIFIStatus()
-	if err != nil {
-		// really is non-responsive -- remove it from the list?
+	k, _ := kasa.NewDevice(g.ip.String())
+	if _, err := k.GetWIFIStatus(); err != nil {
 		log.Info.Printf(err.Error())
 		return
 	}
 
-	// log the signal strength to look for patterns
-	log.Info.Printf("[%s] RSSI: %d", g.Sysinfo.Alias, s.RSSI)
-
-	/* if s.RSSI == 0 {
-		log.Info.Printf("[%s] sending reboot", g.Sysinfo.Alias)
-		if err := k.Reboot(); err != nil {
-			log.Info.Printf(err.Error())
-		}
+	/* log.Info.Printf("[%s] sending reboot", g.Sysinfo.Alias)
+	if err := k.Reboot(); err != nil {
+		log.Info.Printf(err.Error())
 	} */
 }
 
@@ -59,6 +57,8 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 	g.ip = ip
 
 	g.RSSI = NewRSSI()
+	g.StatusActive = characteristic.NewStatusActive()
+	g.StatusActive.SetValue(true)
 
 	info := accessory.Info{
 		Name:         k.Alias,
@@ -83,25 +83,15 @@ func (g *generic) setID() {
 		ID += uint64(v) << (12 - k) * 8
 	}
 	g.A.Id = ID
-	// g.A.Ss[0].AddC(g.RSSI.C)
-
-	g.A.Info.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
-	// add handler: if the device is renamed in homekit, update the device's internal name to match
-	g.A.Info.Name.OnValueRemoteUpdate(func(newname string) {
-		log.Info.Printf("setting alias to [%s]", newname)
-		d, err := kasa.NewDevice(g.ip.String())
-		if err != nil {
-			log.Info.Println(err.Error())
-			return
-		}
-		if err := d.SetAlias(newname); err != nil {
-			log.Info.Println(err.Error())
-			return
-		}
-	})
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
+	// if it was not responding, but is now...
+	if g.StatusActive.Value() == false {
+		log.Info.Printf("[%s] respnding again", g.Sysinfo.Alias)
+		g.StatusActive.SetValue(true)
+	}
+
 	if g.ip.String() != ip.String() {
 		log.Info.Printf("updating ip address: [%s] -> [%s] (%s)", g.ip, ip, k.GetSysinfo.Sysinfo.Alias)
 		g.ip = ip
