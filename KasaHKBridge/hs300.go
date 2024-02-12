@@ -31,12 +31,14 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 	acc.Outlets = make([]*hs300outletSvc, outlets, outlets+1)
 
 	for i := 0; i < outlets; i++ {
+		idx := i // local scope
+
 		o := NewHS300OutletSvc()
 		acc.AddS(o.S)
-		o.On.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
-		o.OutletInUse.SetValue(acc.Sysinfo.Children[i].RelayState > 0)
-		o.Name.SetValue(acc.Sysinfo.Children[i].Alias)
-		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[i].ID)
+		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
+		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
+		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
+		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
 		o.AccIdentifier.SetValue(id)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
@@ -46,7 +48,6 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		}
 		o.SLI.SetValue(i)
 
-		idx := i // local scope
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))
 			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
@@ -56,10 +57,9 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 			o.OutletInUse.SetValue(newstate)
 		})
 
-		acc.Outlets[i] = o
+		acc.Outlets[idx] = o
 	}
 
-	// acc.Outlets[0].AddC(acc.generic.StatusActive.C)
 	return &acc
 }
 

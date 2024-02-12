@@ -29,14 +29,11 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 	os := int(acc.Sysinfo.NumChildren)
 	acc.Outlets = make([]*service.Outlet, os, os+1)
-	// acc.A.AddC(acc.generic.StatusActive.C)
-	// acc.A.AddC(acc.generic.RSSI.C)
 
 	for i := 0; i < os; i++ {
 		idx := i // force local scope - especially for handler
 
 		o := service.NewOutlet()
-		acc.AddS(o.S)
 		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 
@@ -75,6 +72,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		o.AddC(sli.C)
 
 		acc.Outlets[idx] = o
+		acc.AddS(o.S)
 	}
 
 	return &acc

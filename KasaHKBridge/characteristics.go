@@ -167,7 +167,7 @@ func NewRSSI() *rssi {
 	c.Permissions = []string{characteristic.PermissionRead}
 	c.Description = "Kasa RSSI"
 	c.SetMinValue(-110)
-	c.SetMaxValue(0)
+	c.SetMaxValue(100)
 	c.SetValue(-50)
 
 	return &rssi{c}
