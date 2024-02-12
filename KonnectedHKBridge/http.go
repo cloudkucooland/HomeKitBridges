@@ -40,13 +40,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if k.password != "" {
 		sentToken := r.Header.Get("Authorization")
 		if sentToken == "" {
-			log.Info.Printf("Authorization token not sent")
+			log.Info.Println("Authorization token not sent")
 			// http.Error(w, `{ "status": "bad" }`, http.StatusForbidden)
 			fmt.Fprint(w, jsonOK)
 			return
 		}
 		if sentToken[7:] != k.password {
-			log.Info.Printf("Authorization token invalid")
+			log.Info.Println("Authorization token invalid")
 			// http.Error(w, `{ "status": "bad" }`, http.StatusForbidden)
 			fmt.Fprint(w, jsonOK)
 			return
@@ -116,19 +116,24 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			svc.MotionDetected.SetValue(p.State == 1)
 			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
 			case characteristic.SecuritySystemCurrentStateDisarmed:
-				// nothing
-				// log.Info.Printf("%s: %s", svc.Name.Value(), p.State)
+				// log.Info.Println("motion detected while disarmed")
+			case characteristic.SecuritySystemCurrentStateAwayArm:
+				log.Info.Println("motion detected while armed for away")
+				k.countdownAlarm()
 			case characteristic.SecuritySystemCurrentStateStayArm:
-				// nothing
-				// log.Info.Printf("%s: %s", svc.Name.Value(), p.State)
+				// log.Info.Printf("motion detected while in stay; pin: %d", p.Pin)
+			case characteristic.SecuritySystemCurrentStateNightArm:
+				log.Info.Println("motion detected while armed for night")
+				k.motionchirps()
 			default:
-				// for now we won't do anything since the cats trip it
-				log.Info.Printf("motion detected while alarm armed; pin: %d", p.Pin)
-				k.doorchirps()
+				log.Info.Println("motion detected while in unknown state")
+				k.motionchirps()
 			}
 		case *KonnectedContactSensor:
 			svc.ContactSensorState.SetValue(int(p.State))
 			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
+			case characteristic.SecuritySystemCurrentStateDisarmed:
+				// nothing
 			case characteristic.SecuritySystemCurrentStateAwayArm:
 				k.countdownAlarm()
 			case characteristic.SecuritySystemCurrentStateNightArm:
@@ -149,7 +154,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			// svc.Beeper.SetValue(int(p.State))
 		default:
 			log.Info.Printf("bad type in handler: %+v", svc)
-			k.doorchirps()
+			k.motionchirps()
 		}
 	}
 	fmt.Fprint(w, jsonOK)

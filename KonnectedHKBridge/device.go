@@ -98,7 +98,6 @@ func NewKonnected(details *system, d *Device) *Konnected {
 
 	// add handler for setting the system state
 	acc.SecuritySystem.SecuritySystemTargetState.OnValueRemoteUpdate(func(newval int) {
-		log.Info.Printf("HC requested system state change to %d", newval)
 		triggered := true
 		if acc.SecuritySystem.SecuritySystemCurrentState.Value() !=
 			characteristic.SecuritySystemCurrentStateAlarmTriggered {
@@ -106,23 +105,27 @@ func NewKonnected(details *system, d *Device) *Konnected {
 		}
 		switch newval {
 		case characteristic.SecuritySystemCurrentStateStayArm:
+			log.Info.Println("system state changed to 'stay'")
 			if triggered {
-				log.Info.Println("not changing while in triggered state")
+				log.Info.Println("not changing while triggered")
 				return
 			}
 		case characteristic.SecuritySystemCurrentStateAwayArm:
+			log.Info.Println("system state changed to 'away'")
 			if triggered {
-				log.Info.Println("not changing while in triggered state")
+				log.Info.Println("not changing while triggered")
 				return
 			}
 		case characteristic.SecuritySystemCurrentStateNightArm:
+			log.Info.Println("system state changed to 'night'")
 			if triggered {
-				log.Info.Println("not changing while in triggered state")
+				log.Info.Println("not changing while triggered")
 				return
 			}
 		case characteristic.SecuritySystemCurrentStateDisarmed:
+			log.Info.Println("system state changed to 'disarmed'")
 			if triggered {
-				log.Info.Println("shutting off alarm")
+				log.Info.Println("stopping alarm")
 				acc.cancelAlarm()
 			}
 		default:

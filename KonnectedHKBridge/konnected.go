@@ -262,7 +262,16 @@ func (k *Konnected) doorchirps() {
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
 		k.doBuzz(`"state":1, "momentary":10, "times":5, "pause":30`)
 	} else {
-		log.Info.Println("not doing chirps since in triggered state")
+		log.Info.Println("not doing door chirps since in triggered state")
+	}
+}
+
+func (k *Konnected) motionchirps() {
+	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
+		characteristic.SecuritySystemCurrentStateAlarmTriggered {
+		k.doBuzz(`"state":1, "momentary":5, "times":3, "pause":50`)
+	} else {
+		log.Info.Println("not doing motion chirps since in triggered state")
 	}
 }
 
