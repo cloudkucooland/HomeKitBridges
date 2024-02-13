@@ -1,4 +1,4 @@
-Daikin One HomeKit Bridge
+Kasa HomeKit Bridge
 =========================
 
 Control your TP-Link Kasa devices from Siri or the Home.app
