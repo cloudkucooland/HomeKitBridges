@@ -31,7 +31,7 @@ func (g *generic) getLastUpdate() time.Time {
 }
 
 func (g *generic) unreachable() {
-	if g.StatusActive.Value() == false {
+	if !g.StatusActive.Value() {
 		return
 	}
 
@@ -87,7 +87,7 @@ func (g *generic) setID() {
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 	// if it was not responding, but is now...
-	if g.StatusActive.Value() == false {
+	if !g.StatusActive.Value() {
 		log.Info.Printf("[%s] respnding again", g.Sysinfo.Alias)
 		g.StatusActive.SetValue(true)
 	}
