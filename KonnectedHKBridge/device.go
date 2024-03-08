@@ -2,6 +2,7 @@ package konnectedkhbridge
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/brutella/hap/accessory"
@@ -18,6 +19,7 @@ type Konnected struct {
 	// Trigger        *KonnectedTrigger
 	ip       string
 	password string
+	mu       sync.Mutex
 }
 
 func NewKonnected(details *system, d *Device) *Konnected {

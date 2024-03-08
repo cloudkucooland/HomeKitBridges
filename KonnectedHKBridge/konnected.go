@@ -251,7 +251,7 @@ func Background() {
 func (k *Konnected) beep() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
-		k.doBuzz(`"state":1, "momentary":120, "times":2, "pause":55`)
+		k.doBuzz(true, 2, 120, 55)
 	} else {
 		log.Info.Println("not beeping since in triggered state")
 	}
@@ -260,7 +260,7 @@ func (k *Konnected) beep() {
 func (k *Konnected) doorchirps() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
-		k.doBuzz(`"state":1, "momentary":10, "times":5, "pause":30`)
+		k.doBuzz(true, 5, 10, 30)
 	} else {
 		log.Info.Println("not doing door chirps since in triggered state")
 	}
@@ -269,7 +269,7 @@ func (k *Konnected) doorchirps() {
 func (k *Konnected) motionchirps() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
-		k.doBuzz(`"state":1, "momentary":5, "times":3, "pause":50`)
+		k.doBuzz(true, 3, 5, 50)
 	} else {
 		log.Info.Println("not doing motion chirps since in triggered state")
 	}
@@ -278,7 +278,7 @@ func (k *Konnected) motionchirps() {
 func (k *Konnected) instantAlarm() {
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateAlarmTriggered)
 	log.Info.Println("sending alarm")
-	k.doBuzz(`"state":1`)
+	k.doBuzz(true, 0, 0, 0)
 
 	// notify noonlight
 
@@ -298,7 +298,7 @@ func (k *Konnected) countdownAlarm() {
 	log.Info.Println("starting countdown")
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateAlarmTriggered)
 
-	k.doBuzz(`"state":1, "momentary":50, "pause":450`)
+	k.doBuzz(true, 1, 50, 255)
 
 	go func() {
 		select {
@@ -328,24 +328,47 @@ func (k *Konnected) cancelAlarm() {
 		return
 	}
 
-	k.doBuzz(`"state": 0`)
+	k.doBuzz(false, 0, 0, 0)
 	disarmed <- true
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateDisarmed)
 }
 
-func (k *Konnected) doBuzz(cmd string) error {
+func (k *Konnected) doBuzz(state bool, times uint8, momentary uint8, pause uint8) error {
 	pin, _ := k.getBuzzerPin()
 
 	if pin == 0 {
 		return nil
 	}
 
+    // `"state":1, "momentary":5, "times":3, "pause":50`
+    cmd := fmt.Sprintf("{\"pin\":%d, ", pin)
+	if state {
+		cmd += "\"state\":1"
+		if momentary > 0 {
+			cmd += fmt.Sprintf(", \"momentary\":%d", momentary)
+		}
+		if times > 0 {
+			cmd += fmt.Sprintf(", \"times\":%d", times)
+		}
+		if pause > 0 {
+			cmd += fmt.Sprintf(", \"pause\":%d", pause)
+		}
+	} else {
+		cmd = `"state":0`
+	}
+    cmd += "}"
+
 	url := fmt.Sprintf("http://%s/device", k.ip)
-	fullcmd := fmt.Sprintf("{\"pin\":%d, %s}", pin, cmd)
-	_, err := doRequest("PUT", url, bytes.NewBuffer([]byte(fullcmd)))
+
+    log.Info.Println(cmd)
+
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	_, err := doRequest("PUT", url, bytes.NewBuffer([]byte(cmd)))
 	if err != nil {
 		return err
 	}
+	time.Sleep(time.Duration((momentary+pause)*(times+1)) * time.Microsecond)
 	return nil
 }
 
