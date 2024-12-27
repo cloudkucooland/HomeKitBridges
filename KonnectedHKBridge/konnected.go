@@ -363,7 +363,7 @@ func provisionMinimal(c *Config, d *Device) error {
 
 	b, err := json.Marshal(rpd)
 	if err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return err
 	}
 
@@ -372,7 +372,7 @@ func provisionMinimal(c *Config, d *Device) error {
 	url := fmt.Sprintf("http://%s/settings", d.ip)
 	result, err := doRequest("PUT", url, bytes.NewReader(b))
 	if err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return err
 	}
 	log.Info.Printf("%s", result)
@@ -417,7 +417,7 @@ func (k *Konnected) provision(s *system, c *Config, d *Device) error {
 
 	b, err := json.Marshal(rpd)
 	if err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return err
 	}
 	log.Info.Printf("reprovisioning: %s", b)
