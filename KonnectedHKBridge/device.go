@@ -37,8 +37,8 @@ func NewKonnected(details *system, d *Device) *Konnected {
 
 	acc.SecuritySystem = NewKonnectedSvc()
 	acc.AddS(acc.SecuritySystem.S)
-	acc.SecuritySystem.SecuritySystemCurrentState.SetValue(3) // default to Off
-	acc.SecuritySystem.SecuritySystemTargetState.SetValue(3)  // default to Off
+	acc.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateStayArm) // default to Stay
+	acc.SecuritySystem.SecuritySystemTargetState.SetValue(characteristic.SecuritySystemCurrentStateStayArm)  // default to Stay
 
 	alarmType := characteristic.NewSecuritySystemAlarmType()
 	alarmType.SetValue(1)
