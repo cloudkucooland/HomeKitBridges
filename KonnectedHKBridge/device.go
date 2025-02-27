@@ -12,7 +12,7 @@ import (
 
 type Konnected struct {
 	*accessory.A
-	pins           map[uint8]interface{}
+	pins           map[uint8]any
 	SecuritySystem *KonnectedSvc
 	Buzzer         *KonnectedBuzzer
 	// Trigger        *KonnectedTrigger
@@ -45,7 +45,7 @@ func NewKonnected(details *system, d *Device) *Konnected {
 	acc.SecuritySystem.AddC(alarmType.C)
 
 	// convert zones from config to pins
-	acc.pins = make(map[uint8]interface{})
+	acc.pins = make(map[uint8]any)
 	for _, v := range d.Zones {
 		switch v.Type {
 		case "motion":
