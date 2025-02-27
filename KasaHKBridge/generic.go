@@ -41,7 +41,7 @@ func (g *generic) unreachable() {
 	// try conecting using a TCP connection to see if it is really down or just dropping UDP
 	k, _ := kasa.NewDevice(g.ip.String())
 	if _, err := k.GetWIFIStatus(); err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return
 	}
 

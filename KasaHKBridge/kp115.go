@@ -121,7 +121,7 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 
 	kd, err := kasa.NewDevice(ip.String())
 	if err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return
 	}
 

@@ -240,13 +240,13 @@ func setCountdown(ip net.IP, target bool, dur int) error {
 
 	// remove any existing countdowns
 	if err := k.ClearCountdownRules(); err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return err
 	}
 
 	// add our new countdown
 	if err := k.AddCountdownRule(dur, target, "added from kasahkb"); err != nil {
-		log.Info.Printf(err.Error())
+		log.Info.Println(err.Error())
 		return err
 	}
 
