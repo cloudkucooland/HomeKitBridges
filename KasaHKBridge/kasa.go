@@ -85,8 +85,8 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 			k, ok := kasas[kd.GetSysinfo.Sysinfo.DeviceID]
 
-			// make the device, store it, trigger a refresh
 			if !ok {
+			    // make the device, store it, trigger a refresh
 				switch kd.GetSysinfo.Sysinfo.Model {
 				case "HS103(US)":
 					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS103(kd, addr.IP)
@@ -132,7 +132,9 @@ func Startup(ctx context.Context, refresh chan bool) error {
 
 	kasa.SetLogger(log.Info)
 
-	broadcasts, _ = kasa.BroadcastAddresses()
+	if err := SetBroadcasts(); err != nil {
+		return err
+	}
 
 	// wait for the Listener to get going -- 0th ping is a dummy
 	<-refresh
@@ -170,6 +172,13 @@ func Devices() []*accessory.A {
 	return a
 }
 
+func SetBroadcasts() error {
+	var err error
+	log.Debug.Printf("updating broadcasts")
+	broadcasts, err = kasa.BroadcastAddresses()
+	return err
+}
+
 func poller(ctx context.Context) {
 	t := time.Tick(pollInterval * time.Second)
 
@@ -189,7 +198,7 @@ func poller(ctx context.Context) {
 			log.Info.Printf("poller: contexted canceled")
 			return
 		case <-t:
-			// log.Info.Printf("poller: tick")
+			// log.Debug.Printf("poller: tick")
 		}
 	}
 }

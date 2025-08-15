@@ -14,6 +14,8 @@ import (
 	"github.com/brutella/hap/log"
 
 	"github.com/urfave/cli/v2"
+
+	"github.com/vishvananda/netlink"
 )
 
 // TODO dump cli and use the native flag type
@@ -37,6 +39,13 @@ func main() {
 				log.Info.Panic("unable to get config directory", dir)
 			}
 
+			// listen for interface status changes
+			var linkstatuschan = make(chan netlink.LinkUpdate, 5)
+			var disconnectchan = make(chan struct{})
+			if err := netlink.LinkSubscribe(linkstatuschan, disconnectchan); err != nil {
+				log.Info.Panic(err.Error())
+			}
+
 			// wait for signal to shut down
 			sigch := make(chan os.Signal, 3)
 			signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
@@ -46,13 +55,14 @@ func main() {
 			// start the UDP listener before anything else
 			listenctx, listencancel := context.WithCancel(context.Background())
 			var listenwaitgroup sync.WaitGroup
-			listenwaitgroup.Add(1)
-			go func() {
-				defer listenwaitgroup.Done()
+			listenwaitgroup.Go(func() {
 				kasahkbridge.Listener(listenctx, refresh)
-			}()
+			})
 
 			// discover & provision the devices
+			if err = kasahkbridge.SetBroadcasts(); err != nil {
+				log.Info.Panic(err)
+			}
 			if err = kasahkbridge.Startup(listenctx, refresh); err != nil {
 				log.Info.Panic(err)
 			}
@@ -73,14 +83,13 @@ func main() {
 				}
 
 				// serve HomeKit
-				hapwaitgroup.Add(1)
-				go func(hapctx context.Context) {
-					defer hapwaitgroup.Done()
+				hapwaitgroup.Go(func() {
 					hapserver.ListenAndServe(hapctx)
-				}(hapctx)
+				})
 
 				select {
 				case <-refresh:
+					// TODO if less than 3 seconds since last restart, just wait?
 					log.Info.Printf("new device discovered, restarting")
 					hapcancel()
 					hapwaitgroup.Wait()
@@ -95,8 +104,15 @@ func main() {
 					hapcancel()
 					hapwaitgroup.Wait()
 					break DONE
+				case <-linkstatuschan:
+					log.Info.Printf("interface change, updating broadcast addresses")
+					_ = kasahkbridge.SetBroadcasts()
+					hapcancel()
+					hapwaitgroup.Wait()
+					// loop back around
 				}
 			}
+			close(disconnectchan)
 			listencancel()
 			listenwaitgroup.Wait()
 			return nil
