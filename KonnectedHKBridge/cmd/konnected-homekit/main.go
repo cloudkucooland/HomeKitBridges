@@ -63,11 +63,7 @@ func main() {
 			var wg sync.WaitGroup
 
 			// respond to HTTP requests from the konnected devices (even before they are configured, so they can be bootstrapped)
-			wg.Add(1)
-			go func(ctx context.Context) {
-				defer wg.Done()
-				konnectedkhbridge.HTTPServer(ctx, conf.ListenAddr)
-			}(ctx)
+			wg.Go(func() { konnectedkhbridge.HTTPServer(ctx, conf.ListenAddr) })
 
 			// discover & provision the devices
 			devices, err := konnectedkhbridge.Startup(ctx, conf)
@@ -85,11 +81,7 @@ func main() {
 			}
 
 			// serve HomeKit
-			wg.Add(1)
-			go func(ctx context.Context) {
-				defer wg.Done()
-				s.ListenAndServe(ctx)
-			}(ctx)
+			wg.Go(func() { s.ListenAndServe(ctx) })
 
 			// wait for signal to shut down
 			sigch := make(chan os.Signal, 3)
