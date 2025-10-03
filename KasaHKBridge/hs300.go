@@ -16,6 +16,8 @@ import (
 type HS300 struct {
 	*generic
 
+	SLN *characteristic.ServiceLabelNamespace
+
 	Outlets []*hs300outletSvc
 }
 
@@ -26,6 +28,9 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
 	acc.setID()
+
+	acc.SLN = characteristic.NewServiceLabelNamespace()
+	acc.SLN.SetValue(characteristic.ServiceLabelNamespaceArabicNumerals)
 
 	outlets := int(acc.Sysinfo.NumChildren)
 	acc.Outlets = make([]*hs300outletSvc, outlets, outlets+1)
@@ -40,13 +45,16 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
 		o.AccIdentifier.SetValue(id)
+		o.ID.SetValue(idx)
+		o.SLI.SetValue(idx)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
 			// log.Info.Printf("Outlet ID: %d", int(dx))
+			// overwrite with "globally" unique values
 			o.ID.SetValue(int(dx))
+			o.SLI.SetValue(int(dx))
 		}
-		o.SLI.SetValue(i)
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))

@@ -68,7 +68,7 @@ func Listener(ctx context.Context, refresh chan bool) {
 			}
 
 			if !(strings.Contains(s, `"get_sysinfo"`) || strings.HasPrefix(s, `{"emeter":{"get_realtime":{`)) {
-				log.Info.Printf("unknown message from %s: %s", addr.IP, s)
+				log.Info.Printf("unknown message from %s: %s", addr.IP.String(), s)
 				continue
 			}
 
@@ -86,7 +86,7 @@ func Listener(ctx context.Context, refresh chan bool) {
 			k, ok := kasas[kd.GetSysinfo.Sysinfo.DeviceID]
 
 			if !ok {
-			    // make the device, store it, trigger a refresh
+				// make the device, store it, trigger a refresh
 				switch kd.GetSysinfo.Sysinfo.Model {
 				case "HS103(US)":
 					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS103(kd, addr.IP)

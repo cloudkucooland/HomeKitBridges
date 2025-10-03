@@ -16,6 +16,8 @@ import (
 type KP303 struct {
 	*generic
 
+	SLN *characteristic.ServiceLabelNamespace
+
 	Outlets []*service.Outlet
 }
 
@@ -26,6 +28,9 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
 	acc.setID()
+
+	acc.SLN = characteristic.NewServiceLabelNamespace()
+	acc.SLN.SetValue(characteristic.ServiceLabelNamespaceArabicNumerals)
 
 	os := int(acc.Sysinfo.NumChildren)
 	acc.Outlets = make([]*service.Outlet, os, os+1)
@@ -43,6 +48,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		o.AddC(n.C)
 
 		// Identifier doesn't seem to much help - but doesn't hurt
+		// ServiceLabelIndex seems to help keep the service correct across backup/restore, I think
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
@@ -50,6 +56,10 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 			id := characteristic.NewIdentifier()
 			id.SetValue(int(dx))
 			o.AddC(id.C)
+
+			sli := characteristic.NewServiceLabelIndex()
+			sli.SetValue(int(dx))
+			o.AddC(sli.C)
 		}
 
 		// AccessoryIdentifier doesn't seem to much help - but doesn't hurt
@@ -65,11 +75,6 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 			}
 			o.OutletInUse.SetValue(newstate)
 		})
-
-		// ServiceLabelIndex seems to help keep the service correct across backup/restore, I think
-		sli := characteristic.NewServiceLabelIndex()
-		sli.SetValue(idx)
-		o.AddC(sli.C)
 
 		acc.Outlets[idx] = o
 		acc.AddS(o.S)
