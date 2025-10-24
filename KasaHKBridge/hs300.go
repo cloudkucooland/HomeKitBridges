@@ -16,8 +16,6 @@ import (
 type HS300 struct {
 	*generic
 
-	SLN *characteristic.ServiceLabelNamespace
-
 	Outlets []*hs300outletSvc
 }
 
@@ -28,9 +26,6 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
 	acc.A = accessory.New(info, accessory.TypeOutlet)
 	acc.setID()
-
-	acc.SLN = characteristic.NewServiceLabelNamespace()
-	acc.SLN.SetValue(characteristic.ServiceLabelNamespaceArabicNumerals)
 
 	outlets := int(acc.Sysinfo.NumChildren)
 	acc.Outlets = make([]*hs300outletSvc, outlets, outlets+1)
@@ -46,14 +41,12 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
 		o.AccIdentifier.SetValue(id)
 		o.ID.SetValue(idx)
-		o.SLI.SetValue(idx)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
 			// log.Info.Printf("Outlet ID: %d", int(dx))
 			// overwrite with "globally" unique values
 			o.ID.SetValue(int(dx))
-			o.SLI.SetValue(int(dx))
 		}
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
@@ -79,7 +72,6 @@ type hs300outletSvc struct {
 	Name          *characteristic.Name
 	ID            *characteristic.Identifier
 	AccIdentifier *characteristic.AccessoryIdentifier
-	SLI           *characteristic.ServiceLabelIndex
 
 	Volt *volt
 	Watt *watt
@@ -100,19 +92,13 @@ func NewHS300OutletSvc() *hs300outletSvc {
 	svc.Name = characteristic.NewName()
 	svc.AddC(svc.Name.C)
 
-	// probably useless - but harmless
 	svc.ID = characteristic.NewIdentifier()
 	svc.AddC(svc.ID.C)
 	svc.ID.SetValue(0)
 
-	// probably useless - but harmless
 	svc.AccIdentifier = characteristic.NewAccessoryIdentifier()
 	svc.AddC(svc.AccIdentifier.C)
 	svc.AccIdentifier.SetValue("0")
-
-	// probably helpful
-	svc.SLI = characteristic.NewServiceLabelIndex()
-	svc.AddC(svc.SLI.C)
 
 	svc.Volt = NewVolt()
 	svc.AddC(svc.Volt.C)

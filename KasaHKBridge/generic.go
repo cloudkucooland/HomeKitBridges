@@ -30,6 +30,10 @@ func (g *generic) getLastUpdate() time.Time {
 	return g.lastUpdate
 }
 
+func (g *generic) sysinfo() kasa.Sysinfo {
+	return g.Sysinfo
+}
+
 func (g *generic) unreachable() {
 	if !g.StatusActive.Value() {
 		return

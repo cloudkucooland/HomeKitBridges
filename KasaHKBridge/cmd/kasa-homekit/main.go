@@ -63,7 +63,7 @@ func main() {
 			if err = kasahkbridge.SetBroadcasts(); err != nil {
 				log.Info.Panic(err)
 			}
-			if err = kasahkbridge.Startup(listenctx, refresh); err != nil {
+			if err = kasahkbridge.Startup(listenctx, refresh, dir); err != nil {
 				log.Info.Panic(err)
 			}
 
@@ -115,6 +115,7 @@ func main() {
 			close(disconnectchan)
 			listencancel()
 			listenwaitgroup.Wait()
+            kasahkbridge.Shutdown(fulldir)
 			return nil
 		},
 	}

@@ -30,6 +30,7 @@ type kasaDevice interface {
 	unreachable()
 	getIP() net.IP
 	getAlias() string
+	sysinfo() kasa.Sysinfo
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
@@ -127,10 +128,11 @@ func Listener(ctx context.Context, refresh chan bool) {
 }
 
 // Startup
-func Startup(ctx context.Context, refresh chan bool) error {
+func Startup(ctx context.Context, refresh chan bool, path string) error {
 	kasas = make(map[string]kasaDevice)
 
 	kasa.SetLogger(log.Info)
+	LoadCache(path)
 
 	if err := SetBroadcasts(); err != nil {
 		return err
@@ -309,6 +311,8 @@ func getEmeterChild(ip net.IP, parent, child string) error {
 func updateEmeter(kd kasa.KasaDevice, ip net.IP) error {
 	// why am I walking the list of devices if I already know?
 	// because we only have the emeter data, not the full kd
+
+	// could I not use the key instead of getIP().String() and save some overhead?
 	for _, k := range kasas {
 		if k.getIP().String() == ip.String() {
 			k.updateEmeter(kd.Emeter.Realtime)
