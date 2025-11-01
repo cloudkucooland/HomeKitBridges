@@ -59,10 +59,12 @@ func main() {
 				kasahkbridge.Listener(listenctx, refresh)
 			})
 
-			// discover & provision the devices
 			if err = kasahkbridge.SetBroadcasts(); err != nil {
 				log.Info.Panic(err)
 			}
+
+			// discover & provision the devices
+			// cache gets loaded before first broadcast
 			if err = kasahkbridge.Startup(listenctx, refresh, dir); err != nil {
 				log.Info.Panic(err)
 			}
@@ -75,7 +77,6 @@ func main() {
 			for {
 				hapctx, hapcancel := context.WithCancel(context.Background())
 				devices := kasahkbridge.Devices()
-				// kasahkbridge.BridgeAddState()
 				log.Info.Printf("serving %d kasa devices", len(devices))
 				hapserver, err := hap.NewServer(hap.NewFsStore(fulldir), bridge, devices...)
 				if err != nil {
@@ -89,8 +90,11 @@ func main() {
 
 				select {
 				case <-refresh:
-					// TODO if less than 3 seconds since last restart, just wait?
 					log.Info.Printf("new device discovered, restarting")
+					for len(refresh) > 0 {
+						<-refresh
+						log.Info.Printf("draining refresh queue")
+					}
 					hapcancel()
 					hapwaitgroup.Wait()
 					// loop back around, getting updated device list
@@ -115,7 +119,7 @@ func main() {
 			close(disconnectchan)
 			listencancel()
 			listenwaitgroup.Wait()
-            kasahkbridge.Shutdown(fulldir)
+			kasahkbridge.SaveCache(fulldir)
 			return nil
 		},
 	}
