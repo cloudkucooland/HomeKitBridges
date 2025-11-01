@@ -132,7 +132,7 @@ func Startup(ctx context.Context, refresh chan bool, path string) error {
 	kasas = make(map[string]kasaDevice)
 
 	kasa.SetLogger(log.Info)
-	LoadCache(path)
+	loadCache(path)
 
 	if err := SetBroadcasts(); err != nil {
 		return err

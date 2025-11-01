@@ -44,10 +44,6 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.Brightness.OnValueRemoteUpdate(func(newstate int) {
 		if newstate == 0 {
-			/* log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(false))
-					    if err := setRelayState(acc.ip, false); err != nil {
-						    log.Info.Println(err.Error())
-			            } */
 			return
 		}
 		log.Info.Printf("[%s] %d%%", acc.Sysinfo.Alias, newstate)
@@ -158,11 +154,12 @@ func NewHS220Svc(ip net.IP) *HS220Svc {
 	svc.AddC(svc.GentleOffTime.C)
 
 	svc.RampRate = NewRampRate()
-	svc.AddC(svc.RampRate.C) // nope
+	svc.AddC(svc.RampRate.C) // nope -- 3 years later, what is this nope?
 
 	svc.MinThreshold = NewMinThreshold()
-	svc.AddC(svc.MinThreshold.C) // nope
+	svc.AddC(svc.MinThreshold.C) // nope -- 3 years later, what is this nope?
 
+	// GetDimmerParameters is TCP and causes delays on restart when loading from cache
 	k, _ := kasa.NewDevice(ip.String())
 	dimmer, err := k.GetDimmerParameters()
 	if err != nil {

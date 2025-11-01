@@ -39,6 +39,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 		// name doesn't display correctly
 		n := characteristic.NewName()
+		n.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 		n.SetValue(acc.Sysinfo.Children[idx].Alias)
 		o.AddC(n.C)
 
@@ -65,6 +66,14 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 				return
 			}
 			o.OutletInUse.SetValue(newstate)
+		})
+
+		n.OnValueRemoteUpdate(func(newname string) {
+			log.Info.Printf("[%s][%d] new name %s", acc.Sysinfo.Alias, idx, newname)
+			/* if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+				log.Info.Println(err.Error())
+				return
+			} */
 		})
 
 		acc.Outlets[idx] = o

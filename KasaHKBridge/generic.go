@@ -87,6 +87,12 @@ func (g *generic) setID() {
 		ID += uint64(v) << (12 - k) * 8
 	}
 	g.A.Id = ID
+
+	// doesn't ever send
+	g.Info.Name.OnValueRemoteUpdate(func(newname string) {
+		log.Info.Printf("[%s] renamed to %s", g.Sysinfo.Alias, newname)
+		// rename it on the device...
+	})
 }
 
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {

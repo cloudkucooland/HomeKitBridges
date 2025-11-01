@@ -12,7 +12,7 @@ import (
 
 const cachefilename = "startupcache.json"
 
-func Shutdown(path string) error {
+func SaveCache(path string) error {
 	startupcache := make(map[string]kasa.Sysinfo)
 
 	fp := filepath.Join(path, cachefilename)
@@ -35,7 +35,7 @@ func Shutdown(path string) error {
 	return nil
 }
 
-func LoadCache(path string) error {
+func loadCache(path string) error {
 	fp := filepath.Join(path, cachefilename)
 	cache, err := os.ReadFile(fp)
 	if err != nil {
@@ -50,6 +50,7 @@ func LoadCache(path string) error {
 		return err
 	}
 
+	// startup with junk IP addresses, will be fixed on first query
 	var ip byte = 1
 	for id, k := range startupcache {
 		ipd := net.IPv4(169, 254, 199, ip)

@@ -18,7 +18,7 @@ func Bridge() *accessory.A {
 		SerialNumber: "1101",
 		Manufacturer: "cloudkucooland",
 		Model:        "kasa-homekit",
-		Firmware:     "0.0.3",
+		Firmware:     "0.0.4",
 	})
 	root.A.Id = 1
 
