@@ -33,7 +33,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 	for i := 0; i < outlets; i++ {
 		idx := i // local scope
 
-		o := NewHS300OutletSvc()
+		o := newHS300OutletSvc()
 		acc.AddS(o.S)
 		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
@@ -58,6 +58,14 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 			o.OutletInUse.SetValue(newstate)
 		})
 
+		o.Name.OnValueRemoteUpdate(func(newname string) {
+			log.Info.Printf("[%s][%d] new name %s", acc.Sysinfo.Alias, idx, newname)
+			/* if err := setChildRelayName(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+				log.Info.Println(err.Error())
+				return
+			} */
+		})
+
 		acc.Outlets[idx] = o
 	}
 
@@ -78,7 +86,7 @@ type hs300outletSvc struct {
 	Amp  *amp
 }
 
-func NewHS300OutletSvc() *hs300outletSvc {
+func newHS300OutletSvc() *hs300outletSvc {
 	svc := hs300outletSvc{}
 	svc.S = service.New(service.TypeOutlet)
 
@@ -90,6 +98,7 @@ func NewHS300OutletSvc() *hs300outletSvc {
 
 	// doesn't work (anymore, did in older versions of HAP)
 	svc.Name = characteristic.NewName()
+	svc.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	svc.AddC(svc.Name.C)
 
 	svc.ID = characteristic.NewIdentifier()
@@ -127,6 +136,7 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 
 		if h.Outlets[i].Name.Value() != k.GetSysinfo.Sysinfo.Children[i].Alias {
 			log.Info.Printf("updating HomeKit: [%s][%d] name %s", k.GetSysinfo.Sysinfo.Alias, i, k.GetSysinfo.Sysinfo.Children[i].Alias)
+			h.Outlets[i].Name.SetValue(k.GetSysinfo.Sysinfo.Children[i].Alias)
 		}
 
 		// request emeter data for each outlet

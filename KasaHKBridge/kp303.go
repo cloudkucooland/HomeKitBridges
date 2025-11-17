@@ -16,7 +16,7 @@ import (
 type KP303 struct {
 	*generic
 
-	Outlets []*service.Outlet
+	Outlets []*kp303outletSvc
 }
 
 func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
@@ -28,36 +28,24 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 	acc.setID()
 
 	os := int(acc.Sysinfo.NumChildren)
-	acc.Outlets = make([]*service.Outlet, os, os+1)
+	acc.Outlets = make([]*kp303outletSvc, os, os+1)
 
 	for i := 0; i < os; i++ {
 		idx := i // force local scope - especially for handler
 
-		o := service.NewOutlet()
+		o := newkp303OutletSvc()
 		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 
-		// name doesn't display correctly
-		n := characteristic.NewName()
-		n.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
-		n.SetValue(acc.Sysinfo.Children[idx].Alias)
-		o.AddC(n.C)
-
-		// Identifier doesn't seem to much help - but doesn't hurt
-		// ServiceLabelIndex seems to help keep the service correct across backup/restore, I think
+		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
+		o.AccIdentifier.SetValue(id)
+		o.ID.SetValue(idx)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
-			id := characteristic.NewIdentifier()
-			id.SetValue(int(dx))
-			o.AddC(id.C)
+			o.ID.SetValue(int(dx))
 		}
-
-		// AccessoryIdentifier doesn't seem to much help - but doesn't hurt
-		ai := characteristic.NewAccessoryIdentifier()
-		ai.SetValue(id)
-		o.AddC(ai.C)
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))
@@ -68,9 +56,9 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 			o.OutletInUse.SetValue(newstate)
 		})
 
-		n.OnValueRemoteUpdate(func(newname string) {
+		o.Name.OnValueRemoteUpdate(func(newname string) {
 			log.Info.Printf("[%s][%d] new name %s", acc.Sysinfo.Alias, idx, newname)
-			/* if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+			/* if err := setChildRelayName(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
 				log.Info.Println(err.Error())
 				return
 			} */
@@ -92,5 +80,45 @@ func (h *KP303) update(k kasa.KasaDevice, ip net.IP) {
 			h.Outlets[i].On.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 			h.Outlets[i].OutletInUse.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
 		}
+
+		if h.Outlets[i].Name.Value() != k.GetSysinfo.Sysinfo.Children[i].Alias {
+			log.Info.Printf("updating HomeKit: [%s][%d] name %s", k.GetSysinfo.Sysinfo.Alias, i, k.GetSysinfo.Sysinfo.Children[i].Alias)
+			h.Outlets[i].Name.SetValue(k.GetSysinfo.Sysinfo.Children[i].Alias)
+		}
 	}
+}
+
+type kp303outletSvc struct {
+	*service.S
+
+	On            *characteristic.On
+	OutletInUse   *characteristic.OutletInUse
+	Name          *characteristic.Name
+	ID            *characteristic.Identifier
+	AccIdentifier *characteristic.AccessoryIdentifier
+}
+
+func newkp303OutletSvc() *kp303outletSvc {
+	svc := kp303outletSvc{}
+	svc.S = service.New(service.TypeOutlet)
+
+	svc.On = characteristic.NewOn()
+	svc.AddC(svc.On.C)
+
+	svc.OutletInUse = characteristic.NewOutletInUse()
+	svc.AddC(svc.OutletInUse.C)
+
+	svc.Name = characteristic.NewName()
+	svc.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	svc.AddC(svc.Name.C)
+
+	svc.ID = characteristic.NewIdentifier()
+	svc.AddC(svc.ID.C)
+	svc.ID.SetValue(0)
+
+	svc.AccIdentifier = characteristic.NewAccessoryIdentifier()
+	svc.AddC(svc.AccIdentifier.C)
+	svc.AccIdentifier.SetValue("0")
+
+	return &svc
 }
