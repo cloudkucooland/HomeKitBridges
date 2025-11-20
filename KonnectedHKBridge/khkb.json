@@ -1,6 +1,6 @@
 {
     "Pin":"80899303",
-    "ListenAddr":"192.168.12.5:8999",
+    "ListenAddr":"192.168.50.5:8999",
     "Devices": [ 
      {
       "Mac": "f4cfa26ac26e",
