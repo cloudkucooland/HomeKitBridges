@@ -88,6 +88,8 @@ func (g *generic) setID() {
 	}
 	g.A.Id = ID
 
+	g.Info.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+
 	// doesn't ever send
 	g.Info.Name.OnValueRemoteUpdate(func(newname string) {
 		log.Info.Printf("[%s] renamed to %s", g.Sysinfo.Alias, newname)
