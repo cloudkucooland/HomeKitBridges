@@ -235,19 +235,6 @@ func (k *Konnected) getStatusAndUpdate() error {
 	return nil
 }
 
-func Background() {
-	go func() {
-		for range time.Tick(time.Second * time.Duration(20)) {
-			for _, k := range ks {
-				err := k.getStatusAndUpdate()
-				if err != nil {
-					log.Info.Println(err.Error())
-				}
-			}
-		}
-	}()
-}
-
 func (k *Konnected) beep() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
