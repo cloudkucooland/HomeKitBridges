@@ -16,11 +16,13 @@ type volt struct {
 }
 
 func NewVolt() *volt {
-	c := characteristic.NewInt("E863F10A")
+	// c := characteristic.NewInt("E863F10A")
+	c := characteristic.NewInt("E863F10A-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Voltage"
-	c.SetValue(120)
+	c.Unit = "volt"
+	_ = c.SetValue(120)
 
 	return &volt{c}
 }
@@ -30,11 +32,13 @@ type watt struct {
 }
 
 func NewWatt() *watt {
-	c := characteristic.NewInt("E863F10D")
+	// c := characteristic.NewInt("E863F10D")
+	c := characteristic.NewInt("E863F10D-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Watts"
-	c.SetValue(0)
+	c.Unit = "watt"
+	_ = c.SetValue(0)
 
 	return &watt{c}
 }
@@ -44,11 +48,13 @@ type amp struct {
 }
 
 func NewAmp() *amp {
-	c := characteristic.NewInt("E863F126")
+	// c := characteristic.NewInt("E863F126")
+	c := characteristic.NewInt("E863F126-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
-	c.Description = "Current MA"
-	c.SetValue(0)
+	c.Description = "Current mA"
+	c.Unit = "milliampre"
+	_ = c.SetValue(0)
 
 	return &amp{c}
 }
@@ -57,7 +63,7 @@ func NewAmp() *amp {
 // fade on       E8700110
 // fade off      E8700111
 // gentle on     E8700112
-// gentle of     E8700113
+// gentle off    E8700113
 // ramp rate     E8700114
 // min threshold E8700115
 // RSSI          E8700116
@@ -67,13 +73,15 @@ type fadeOnTime struct {
 }
 
 func NewFadeOnTime() *fadeOnTime {
-	c := characteristic.NewInt("E8700110")
+	// c := characteristic.NewInt("E8700110")
+	c := characteristic.NewInt("E8700110-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
 	c.Description = "Fade On Time"
+	c.Unit = "millisecond"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
-	c.SetValue(0)
+	_ = c.SetValue(0)
 
 	return &fadeOnTime{c}
 }
@@ -83,13 +91,15 @@ type fadeOffTime struct {
 }
 
 func NewFadeOffTime() *fadeOffTime {
-	c := characteristic.NewInt("E8700111")
+	// c := characteristic.NewInt("E8700111")
+	c := characteristic.NewInt("E8700111-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
 	c.Description = "Fade Off Time"
+	c.Unit = "millisecond"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
-	c.SetValue(0)
+	_ = c.SetValue(0)
 
 	return &fadeOffTime{c}
 }
@@ -99,13 +109,15 @@ type gentleOnTime struct {
 }
 
 func NewGentleOnTime() *gentleOnTime {
-	c := characteristic.NewInt("E8700112")
+	// c := characteristic.NewInt("E8700112")
+	c := characteristic.NewInt("E8700112-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
 	c.Description = "Gentle On Time"
+	c.Unit = "millisecond"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
-	c.SetValue(0)
+	_ = c.SetValue(0)
 
 	return &gentleOnTime{c}
 }
@@ -115,13 +127,15 @@ type gentleOffTime struct {
 }
 
 func NewGentleOffTime() *gentleOffTime {
-	c := characteristic.NewInt("E8700113")
+	// c := characteristic.NewInt("E8700113")
+	c := characteristic.NewInt("E8700113-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
 	c.Description = "Gentle Off Time"
+	c.Unit = "millisecond"
 	c.SetMinValue(0)
 	c.SetMaxValue(100000)
-	c.SetValue(0)
+	_ = c.SetValue(0)
 
 	return &gentleOffTime{c}
 }
@@ -131,12 +145,15 @@ type rampRate struct {
 }
 
 func NewRampRate() *rampRate {
-	c := characteristic.NewInt("E8700114")
+	// c := characteristic.NewInt("E8700114")
+	c := characteristic.NewInt("E8700114-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
 	c.Description = "Ramp Rate"
+	c.Unit = "millisecond"
 	c.SetMinValue(0)
-	c.SetValue(0)
+	c.SetMaxValue(1000)
+	_ = c.SetValue(0)
 
 	return &rampRate{c}
 }
@@ -146,13 +163,15 @@ type minThreshold struct {
 }
 
 func NewMinThreshold() *minThreshold {
-	c := characteristic.NewInt("E8700115")
+	// c := characteristic.NewInt("E8700115")
+	c := characteristic.NewInt("E8700115-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead}
-	c.Description = "Min Threshold"
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
+	c.Description = "Minimum Threshold"
+	c.Unit = "percentage"
 	c.SetMinValue(0)
 	c.SetMaxValue(100)
-	c.SetValue(0)
+	_ = c.SetValue(0)
 
 	return &minThreshold{c}
 }
@@ -162,13 +181,15 @@ type rssi struct {
 }
 
 func NewRSSI() *rssi {
-	c := characteristic.NewInt("E8700116")
+	// c := characteristic.NewInt("E8700116")
+	c := characteristic.NewInt("E8700116-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatInt32
-	c.Permissions = []string{characteristic.PermissionRead}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
 	c.Description = "Kasa RSSI"
+	c.Unit = "decibel"
 	c.SetMinValue(-110)
-	c.SetMaxValue(100)
-	c.SetValue(-50)
+	c.SetMaxValue(0)
+	_ = c.SetValue(-50)
 
 	return &rssi{c}
 }

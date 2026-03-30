@@ -118,14 +118,14 @@ func Listener(ctx context.Context, refresh chan bool) {
 		k, ok := kasas[kd.GetSysinfo.Sysinfo.DeviceID]
 		kasasMu.RUnlock()
 
-        // potential for race, but exceedingly unlikely since this only hit during
-        // initialization except in VERY rare cases of a new device being brought online
+		// potential for race, but exceedingly unlikely since this only hit during
+		// initialization except in VERY rare cases of a new device being brought online
 		if !ok {
 			if factory, kOk := deviceFactories[kd.GetSysinfo.Sysinfo.Model]; kOk {
 				kasasMu.Lock()
 				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = factory(kd, addr.IP)
 				kasasMu.Unlock()
-                refresh <- true // blocking is OK during initialization
+				refresh <- true // blocking is OK during initialization
 			} else {
 				log.Info.Printf("unknown device type (%s)", kd.GetSysinfo.Sysinfo.Model)
 			}
@@ -257,9 +257,9 @@ func setBrightness(ip net.IP, brightness int) error {
 // this doesn't need to be fast...
 func setCountdown(ip net.IP, target bool, dur int) error {
 	k, err := kasa.NewDeviceIP(ip)
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
 	// remove any existing countdowns
 	if err := k.ClearCountdownRules(); err != nil {
@@ -320,7 +320,7 @@ func updateEmeter(kd kasa.KasaDevice, ip string) error {
 	// because we only have the emeter data, not the full kd
 
 	kasasMu.RLock()
-    // this is an acceptable O(n) loop given typical install sizes
+	// this is an acceptable O(n) loop given typical install sizes
 	for _, device := range kasas {
 		if device.getIPstring() == ip {
 			device.updateEmeter(kd.Emeter.Realtime)

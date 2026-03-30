@@ -24,7 +24,8 @@ func Bridge() *accessory.A {
 
 	// create the settings service
 	settings := settingsService{}
-	settings.S = service.New("E880") // custom
+	// settings.S = service.New("E880") // custom
+	settings.S = service.New("E8800000-0000-1000-8000-0026BB765291") // custom
 
 	// doesn't seem to work
 	settings.Name = characteristic.NewName()
@@ -62,6 +63,7 @@ func newPollRate() *pollRate {
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	c.Description = "Poll Rate"
+	c.Unit = "seconds"
 	c.SetMinValue(10)
 	c.SetMaxValue(3600)
 	c.SetValue(60)

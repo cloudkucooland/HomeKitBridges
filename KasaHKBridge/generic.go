@@ -20,7 +20,7 @@ type generic struct {
 	lastUpdate   time.Time // last time the device responded
 	RSSI         *rssi
 	StatusActive *characteristic.StatusActive
-	ip           net.IP // would probably be better to use string
+	ip           net.IP       // would probably be better to use string
 	Sysinfo      kasa.Sysinfo // contents of the last response from the device
 }
 
@@ -46,10 +46,10 @@ func (g *generic) unreachable() {
 
 	// try conecting using a TCP connection to see if it is really down or just dropping UDP
 	k, err := kasa.NewDeviceIP(g.ip)
-    if err != nil {
+	if err != nil {
 		log.Info.Println(err.Error())
 		return
-    }
+	}
 	if _, err := k.GetWIFIStatus(); err != nil {
 		log.Info.Println(err.Error())
 		return
