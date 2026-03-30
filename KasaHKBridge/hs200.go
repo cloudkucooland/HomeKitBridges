@@ -102,13 +102,13 @@ func (h *HS200) update(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Switch.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
-			d, _ := kasa.NewDevice(h.ip.String())
+			d, _ := kasa.NewDeviceIP(h.getIP())
 			_ = d.ClearCountdownRules()
 		}
 	}
 
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
-		d, _ := kasa.NewDevice(h.ip.String())
+		d, _ := kasa.NewDeviceIP(h.getIP())
 		rules, _ := d.GetCountdownRules()
 		for _, rule := range rules {
 			if rule.Enable > 0 {

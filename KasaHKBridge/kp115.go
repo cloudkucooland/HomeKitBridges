@@ -121,7 +121,7 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		h.Outlet.OutletInUse.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	}
 
-	kd, err := kasa.NewDevice(ip.String())
+	kd, err := kasa.NewDeviceIP(ip)
 	if err != nil {
 		log.Info.Println(err.Error())
 		return

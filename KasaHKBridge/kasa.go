@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/brutella/hap/accessory"
@@ -14,11 +15,20 @@ import (
 	"github.com/cloudkucooland/go-kasa"
 )
 
+// globals are OK since there will only ever be one bridge
 var kasas map[string]kasaDevice
+var kasasMu sync.RWMutex
 var bufsize int = 2048
 var packetconn *net.UDPConn
 var broadcasts []net.IP
-var pollInterval time.Duration = 30
+
+var pollInterval time.Duration = 30 * time.Second
+
+// avoid allocations in the main loops
+var relaySuccess = []byte(`{"system":{"set_relay_state":{"err_code":0}}}`)
+var emeterSuccess = []byte(`{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}`)
+var sysinfoPreamble = []byte(`"get_sysinfo"`)
+var emeterPreamble = []byte(`{"emeter":{"get_realtime":{`)
 
 type kasaDevice interface {
 	getA() *accessory.A
@@ -27,8 +37,28 @@ type kasaDevice interface {
 	getLastUpdate() time.Time
 	unreachable()
 	getIP() net.IP
+	getIPstring() string
 	getAlias() string
 	sysinfo() kasa.Sysinfo
+}
+
+type factoryFunc func(kasa.KasaDevice, net.IP) kasaDevice
+
+// wrapper since New* returns a poninter but a pointer to an interface is useless
+func wrap[T kasaDevice](fn func(kasa.KasaDevice, net.IP) T) factoryFunc {
+	return func(k kasa.KasaDevice, ip net.IP) kasaDevice {
+		return fn(k, ip)
+	}
+}
+
+var deviceFactories = map[string]func(kasa.KasaDevice, net.IP) kasaDevice{
+	"HS103(US)": wrap(NewHS103),
+	"HS200(US)": wrap(NewHS200),
+	"HS210(US)": wrap(NewHS200),
+	"HS220(US)": wrap(NewHS220),
+	"KP115(US)": wrap(NewKP115),
+	"KP303(US)": wrap(NewKP303),
+	"HS300(US)": wrap(NewHS300),
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
@@ -64,14 +94,11 @@ func Listener(ctx context.Context, refresh chan bool) {
 		d := kasa.Unscramble(buffer[:n])
 
 		// ignore success messages
-		if bytes.Equal(d, []byte(`{"system":{"set_relay_state":{"err_code":0}}}`)) {
-			continue
-		}
-		if bytes.Equal(d, []byte(`{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}`)) {
+		if bytes.Equal(d, relaySuccess) || bytes.Equal(d, emeterSuccess) {
 			continue
 		}
 
-		if !(bytes.Contains(d, []byte(`"get_sysinfo"`)) || bytes.HasPrefix(d, []byte(`{"emeter":{"get_realtime":{`))) {
+		if !(bytes.Contains(d, sysinfoPreamble) || bytes.HasPrefix(d, emeterPreamble)) {
 			log.Info.Printf("unknown message from %s: %s", addr.IP.String(), string(d))
 			continue
 		}
@@ -82,36 +109,25 @@ func Listener(ctx context.Context, refresh chan bool) {
 			continue
 		}
 
-		if bytes.HasPrefix(d, []byte(`{"emeter":{"get_realtime":{`)) {
-			updateEmeter(kd, addr.IP)
+		if bytes.HasPrefix(d, emeterPreamble) {
+			updateEmeter(kd, addr.IP.String())
 			continue
 		}
 
+		kasasMu.RLock()
 		k, ok := kasas[kd.GetSysinfo.Sysinfo.DeviceID]
+		kasasMu.RUnlock()
 
+        // potential for race, but exceedingly unlikely since this only hit during
+        // initialization except in VERY rare cases of a new device being brought online
 		if !ok {
-			// make the device, store it, trigger a refresh
-			switch kd.GetSysinfo.Sysinfo.Model {
-			case "HS103(US)":
-				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS103(kd, addr.IP)
-				refresh <- true
-			case "HS200(US)", "HS210(US)":
-				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS200(kd, addr.IP)
-				refresh <- true
-			case "HS220(US)":
-				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS220(kd, addr.IP)
-				refresh <- true
-			case "KP115(US)":
-				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP115(kd, addr.IP)
-				refresh <- true
-			case "KP303(US)":
-				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP303(kd, addr.IP)
-				refresh <- true
-			case "HS300(US)":
-				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS300(kd, addr.IP)
-				refresh <- true
-			default:
-				log.Info.Printf("unknown device type (%s) %s", addr.IP.String(), d)
+			if factory, kOk := deviceFactories[kd.GetSysinfo.Sysinfo.Model]; kOk {
+				kasasMu.Lock()
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = factory(kd, addr.IP)
+				kasasMu.Unlock()
+                refresh <- true // blocking is OK during initialization
+			} else {
+				log.Info.Printf("unknown device type (%s)", kd.GetSysinfo.Sysinfo.Model)
 			}
 		} else {
 			k.update(kd, addr.IP)
@@ -158,9 +174,11 @@ FIRST:
 func Devices() []*accessory.A {
 	var a []*accessory.A
 
+	kasasMu.RLock()
 	for _, k := range kasas {
 		a = append(a, k.getA())
 	}
+	kasasMu.RUnlock()
 
 	return a
 }
@@ -173,24 +191,28 @@ func SetBroadcasts() error {
 }
 
 func poller(ctx context.Context) {
-	t := time.Tick(pollInterval * time.Second)
+	t := time.NewTicker(pollInterval)
+	defer t.Stop()
 
 	for {
 		discover()
 
 		n := time.Now()
-		b := n.Add(0 - (5 * pollInterval * time.Second))
+		b := n.Add(0 - (5 * pollInterval))
+
+		kasasMu.RLock()
 		for _, k := range kasas {
 			if k.getLastUpdate().Before(b) {
 				k.unreachable()
 			}
 		}
+		kasasMu.RUnlock()
 
 		select {
 		case <-ctx.Done():
 			log.Info.Printf("poller: contexted canceled")
 			return
-		case <-t:
+		case <-t.C:
 			// log.Debug.Printf("poller: tick")
 		}
 	}
@@ -202,8 +224,8 @@ func discover() {
 
 	for _, b := range broadcasts {
 		if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: b, Port: 9999}); err != nil {
-			log.Info.Printf("discovery failed: %s", err.Error())
-			return
+			log.Info.Printf("discovery failed for %s: %s", b.String(), err.Error())
+			continue
 		}
 	}
 }
@@ -234,7 +256,10 @@ func setBrightness(ip net.IP, brightness int) error {
 
 // this doesn't need to be fast...
 func setCountdown(ip net.IP, target bool, dur int) error {
-	k, _ := kasa.NewDevice(ip.String())
+	k, err := kasa.NewDeviceIP(ip)
+    if err != nil {
+        return err
+    }
 
 	// remove any existing countdowns
 	if err := k.ClearCountdownRules(); err != nil {
@@ -290,17 +315,18 @@ func getEmeterChild(ip net.IP, parent, child string) error {
 	return nil
 }
 
-func updateEmeter(kd kasa.KasaDevice, ip net.IP) error {
+func updateEmeter(kd kasa.KasaDevice, ip string) error {
 	// why am I walking the list of devices if I already know?
 	// because we only have the emeter data, not the full kd
 
-	// could I not use the key instead of getIP().String() and save some overhead?
-    s := ip.String()
+	kasasMu.RLock()
+    // this is an acceptable O(n) loop given typical install sizes
 	for _, device := range kasas {
-		if device.getIP().String() == s {
+		if device.getIPstring() == ip {
 			device.updateEmeter(kd.Emeter.Realtime)
 		}
 	}
+	kasasMu.RUnlock()
 
 	return nil
 }

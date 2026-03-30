@@ -20,7 +20,7 @@ type generic struct {
 	lastUpdate   time.Time // last time the device responded
 	RSSI         *rssi
 	StatusActive *characteristic.StatusActive
-	ip           net.IP       // would probably be better to use string
+	ip           net.IP // would probably be better to use string
 	Sysinfo      kasa.Sysinfo // contents of the last response from the device
 }
 
@@ -45,7 +45,11 @@ func (g *generic) unreachable() {
 	g.StatusActive.SetValue(false)
 
 	// try conecting using a TCP connection to see if it is really down or just dropping UDP
-	k, _ := kasa.NewDevice(g.ip.String())
+	k, err := kasa.NewDeviceIP(g.ip)
+    if err != nil {
+		log.Info.Println(err.Error())
+		return
+    }
 	if _, err := k.GetWIFIStatus(); err != nil {
 		log.Info.Println(err.Error())
 		return
@@ -81,7 +85,7 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 func (g *generic) setID() {
 	mac, err := hex.DecodeString(g.Sysinfo.DeviceID[:12])
 	if err != nil {
-		log.Info.Printf("weird kasa devid: %s", err.Error())
+		log.Info.Printf("weird kasa DeviceID: %s", err.Error())
 		return
 	}
 	var ID uint64
@@ -147,6 +151,10 @@ func (g *generic) updateEmeter(e kasa.EmeterRealtime) {
 
 func (g *generic) getIP() net.IP {
 	return g.ip
+}
+
+func (g *generic) getIPstring() string {
+	return g.ip.String()
 }
 
 func (g *generic) getAlias() string {
