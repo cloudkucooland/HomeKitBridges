@@ -2,6 +2,7 @@ package kasahkbridge
 
 import (
 	"net"
+	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -43,6 +44,7 @@ func NewKP115(k kasa.KasaDevice, ip net.IP) *KP115 {
 			return
 		}
 		acc.Outlet.OutletInUse.SetValue(newstate)
+		time.Sleep(CHANGE_SLEEP_DURATION)
 	})
 
 	acc.Outlet.SetDuration.OnValueRemoteUpdate(func(when int) {
@@ -135,7 +137,7 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
 		rules, _ := kd.GetCountdownRules()
-		for _, rule := range *rules {
+		for _, rule := range rules {
 			log.Info.Printf("%+v", rule)
 			if rule.Enable > 0 {
 				log.Info.Printf("updating HomeKit: [%s] RemainingDuration %d", k.GetSysinfo.Sysinfo.Alias, rule.Remaining)

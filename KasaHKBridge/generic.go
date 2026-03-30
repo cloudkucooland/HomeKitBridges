@@ -12,6 +12,8 @@ import (
 	"github.com/cloudkucooland/go-kasa"
 )
 
+const CHANGE_SLEEP_DURATION = (100 * time.Millisecond)
+
 // included in all device types
 type generic struct {
 	*accessory.A
@@ -100,7 +102,7 @@ func (g *generic) setID() {
 func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
 	// if it was not responding, but is now...
 	if !g.StatusActive.Value() {
-		log.Info.Printf("[%s] respnding again", g.Sysinfo.Alias)
+		log.Info.Printf("[%s] responding again", g.Sysinfo.Alias)
 		g.StatusActive.SetValue(true)
 	}
 
@@ -151,7 +153,7 @@ func (g *generic) getAlias() string {
 	return g.Sysinfo.Alias
 }
 
-func intToState(i uint8) string {
+func intToState(i uint) string {
 	if i == 1 {
 		return "On"
 	}

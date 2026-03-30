@@ -1,17 +1,15 @@
 package kasahkbridge
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/brutella/hap/accessory"
-	// "github.com/brutella/hap/characteristic"
 	"github.com/brutella/hap/log"
-	// "github.com/brutella/hap/service"
 
 	"github.com/cloudkucooland/go-kasa"
 )
@@ -43,87 +41,81 @@ func Listener(ctx context.Context, refresh chan bool) {
 	}
 	defer packetconn.Close()
 
-	done := make(chan bool)
 	buffer := make([]byte, bufsize)
 
-	go func() {
-		for {
-			// should I select on ReadFromUDP and ctx.Done()
-			// to remove the (harmless) error notice at shutdown?
-			n, addr, err := packetconn.ReadFromUDP(buffer)
-			if err != nil {
-				log.Info.Println(err.Error())
-				done <- true
-				return
-			}
-
-			d := kasa.Unscramble(buffer[:n])
-			s := string(d)
-
-			// ignore success messages
-			if s == `{"system":{"set_relay_state":{"err_code":0}}}` {
-				continue
-			}
-			if s == `{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}` {
-				continue
-			}
-
-			if !(strings.Contains(s, `"get_sysinfo"`) || strings.HasPrefix(s, `{"emeter":{"get_realtime":{`)) {
-				log.Info.Printf("unknown message from %s: %s", addr.IP.String(), s)
-				continue
-			}
-
-			var kd kasa.KasaDevice
-			if err = json.Unmarshal(d, &kd); err != nil {
-				log.Info.Printf("unmarshal failed: %s", err.Error())
-				continue
-			}
-
-			if strings.HasPrefix(s, `{"emeter":{"get_realtime":{`) {
-				updateEmeter(kd, addr.IP)
-				continue
-			}
-
-			k, ok := kasas[kd.GetSysinfo.Sysinfo.DeviceID]
-
-			if !ok {
-				// make the device, store it, trigger a refresh
-				switch kd.GetSysinfo.Sysinfo.Model {
-				case "HS103(US)":
-					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS103(kd, addr.IP)
-					refresh <- true
-				case "HS200(US)", "HS210(US)":
-					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS200(kd, addr.IP)
-					refresh <- true
-				case "HS220(US)":
-					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS220(kd, addr.IP)
-					refresh <- true
-				case "KP115(US)":
-					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP115(kd, addr.IP)
-					refresh <- true
-				case "KP303(US)":
-					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP303(kd, addr.IP)
-					refresh <- true
-				case "HS300(US)":
-					kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS300(kd, addr.IP)
-					refresh <- true
-				default:
-					log.Info.Printf("unknown device type (%s) %s", addr.IP.String(), d)
-				}
-			} else {
-				k.update(kd, addr.IP)
-			}
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info.Println("shutting down listener")
+			return
+		default:
 		}
-	}()
 
-	// let the poller know we are ready -- send dummy 0th ping
-	refresh <- true
+		_ = packetconn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		n, addr, err := packetconn.ReadFromUDP(buffer)
+		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				continue
+			}
+			log.Info.Println(err.Error())
+			return
+		}
 
-	select {
-	case <-ctx.Done():
-		log.Info.Println("shutting down listener")
-	case <-done:
-		log.Info.Println("shutting down listener due to error")
+		d := kasa.Unscramble(buffer[:n])
+
+		// ignore success messages
+		if bytes.Equal(d, []byte(`{"system":{"set_relay_state":{"err_code":0}}}`)) {
+			continue
+		}
+		if bytes.Equal(d, []byte(`{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}`)) {
+			continue
+		}
+
+		if !(bytes.Contains(d, []byte(`"get_sysinfo"`)) || bytes.HasPrefix(d, []byte(`{"emeter":{"get_realtime":{`))) {
+			log.Info.Printf("unknown message from %s: %s", addr.IP.String(), string(d))
+			continue
+		}
+
+		var kd kasa.KasaDevice
+		if err = json.Unmarshal(d, &kd); err != nil {
+			log.Info.Printf("unmarshal failed: %s", err.Error())
+			continue
+		}
+
+		if bytes.HasPrefix(d, []byte(`{"emeter":{"get_realtime":{`)) {
+			updateEmeter(kd, addr.IP)
+			continue
+		}
+
+		k, ok := kasas[kd.GetSysinfo.Sysinfo.DeviceID]
+
+		if !ok {
+			// make the device, store it, trigger a refresh
+			switch kd.GetSysinfo.Sysinfo.Model {
+			case "HS103(US)":
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS103(kd, addr.IP)
+				refresh <- true
+			case "HS200(US)", "HS210(US)":
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS200(kd, addr.IP)
+				refresh <- true
+			case "HS220(US)":
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS220(kd, addr.IP)
+				refresh <- true
+			case "KP115(US)":
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP115(kd, addr.IP)
+				refresh <- true
+			case "KP303(US)":
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewKP303(kd, addr.IP)
+				refresh <- true
+			case "HS300(US)":
+				kasas[kd.GetSysinfo.Sysinfo.DeviceID] = NewHS300(kd, addr.IP)
+				refresh <- true
+			default:
+				log.Info.Printf("unknown device type (%s) %s", addr.IP.String(), d)
+			}
+		} else {
+			k.update(kd, addr.IP)
+		}
 	}
 }
 
@@ -138,8 +130,7 @@ func Startup(ctx context.Context, refresh chan bool, path string) error {
 		return err
 	}
 
-	// wait for the Listener to get going -- 0th ping is a dummy
-	<-refresh
+	log.Info.Println("Starting initial discovery (3 seconds)")
 
 	timeout, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	discover()
@@ -150,7 +141,7 @@ FIRST:
 		case <-timeout.Done():
 			break FIRST
 		case <-refresh:
-			// drain any additional refresh messages that happened before the discovery timeout
+			// drain refresh messages that happened before the discovery timeout
 		}
 	}
 
@@ -218,11 +209,7 @@ func discover() {
 }
 
 func setRelayState(ip net.IP, newstate bool) error {
-	state := 0
-	if newstate {
-		state = 1
-	}
-	cmd := fmt.Sprintf(kasa.CmdSetRelayState, state)
+	cmd := fmt.Sprintf(kasa.CmdSetRelayState, boolToInt(newstate))
 	payload := kasa.Scramble(cmd)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
@@ -265,14 +252,9 @@ func setCountdown(ip net.IP, target bool, dur int) error {
 }
 
 func setChildRelayState(ip net.IP, parent, child string, newstate bool) error {
-	state := 0
-	if newstate {
-		state = 1
-	}
-
 	full := fmt.Sprintf("%s%s", parent, child)
 
-	cmd := fmt.Sprintf(kasa.CmdSetRelayStateChild, full, state)
+	cmd := fmt.Sprintf(kasa.CmdSetRelayStateChild, full, boolToInt(newstate))
 	payload := kasa.Scramble(cmd)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
@@ -313,11 +295,19 @@ func updateEmeter(kd kasa.KasaDevice, ip net.IP) error {
 	// because we only have the emeter data, not the full kd
 
 	// could I not use the key instead of getIP().String() and save some overhead?
-	for _, k := range kasas {
-		if k.getIP().String() == ip.String() {
-			k.updateEmeter(kd.Emeter.Realtime)
+    s := ip.String()
+	for _, device := range kasas {
+		if device.getIP().String() == s {
+			device.updateEmeter(kd.Emeter.Realtime)
 		}
 	}
 
 	return nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

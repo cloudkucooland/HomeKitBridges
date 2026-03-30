@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -54,6 +55,7 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 				return
 			}
 			o.OutletInUse.SetValue(newstate)
+			time.Sleep(CHANGE_SLEEP_DURATION)
 		})
 
 		o.Name.OnValueRemoteUpdate(func(newname string) {
