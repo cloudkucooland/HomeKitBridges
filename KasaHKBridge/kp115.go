@@ -2,7 +2,6 @@ package kasahkbridge
 
 import (
 	"net"
-	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -39,12 +38,12 @@ func NewKP115(k kasa.KasaDevice, ip net.IP) *KP115 {
 
 	acc.Outlet.On.OnValueRemoteUpdate(func(newstate bool) {
 		log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(newstate))
-		if err := setRelayState(acc.ip, newstate); err != nil {
+		k, _ := newKasaIP(acc.ip)
+		if err := k.SetRelayState(newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
 		}
 		acc.Outlet.OutletInUse.SetValue(newstate)
-		time.Sleep(CHANGE_SLEEP_DURATION)
 	})
 
 	acc.Outlet.SetDuration.OnValueRemoteUpdate(func(when int) {
@@ -121,11 +120,7 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		h.Outlet.OutletInUse.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
 	}
 
-	kd, err := newKasaIP(ip)
-	if err != nil {
-		log.Info.Println(err.Error())
-		return
-	}
+	kd, _ := newKasaIP(ip)
 
 	if h.Outlet.ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
 		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
@@ -148,13 +143,13 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 		h.Outlet.RemainingDuration.SetValue(0)
 	}
 
-	// request emeter data over UDP
-	if err := getEmeter(h.ip); err != nil {
+	// request emeter data over UDP, kd.GetEmeter() is TCP
+	if err := getEmeterUDP(h.ip); err != nil {
 		return
 	}
 }
 
-func (h *KP115) updateEmeter(e kasa.EmeterRealtime) {
+func (h *KP115) incomingEmeterData(e kasa.EmeterRealtime) {
 	if e.Slot > 0 {
 		log.Info.Printf("slot out of bounds: %d", e.Slot)
 	}

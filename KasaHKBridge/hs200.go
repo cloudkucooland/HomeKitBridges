@@ -2,7 +2,6 @@ package kasahkbridge
 
 import (
 	"net"
-	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -37,11 +36,11 @@ func NewHS200(k kasa.KasaDevice, ip net.IP) *HS200 {
 
 	acc.Switch.On.OnValueRemoteUpdate(func(newstate bool) {
 		log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(newstate))
-		if err := setRelayState(acc.ip, newstate); err != nil {
+		k, _ := newKasaIP(acc.ip)
+		if err := k.SetRelayState(newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
 		}
-		time.Sleep(CHANGE_SLEEP_DURATION)
 	})
 
 	acc.Switch.SetDuration.OnValueRemoteUpdate(func(when int) {
@@ -102,13 +101,13 @@ func (h *HS200) update(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Switch.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
-			d, _ := newKasaIP(h.getIP())
+			d, _ := newKasaIP(h.ip)
 			_ = d.ClearCountdownRules()
 		}
 	}
 
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
-		d, _ := newKasaIP(h.getIP())
+		d, _ := newKasaIP(h.ip)
 		rules, _ := d.GetCountdownRules()
 		for _, rule := range rules {
 			if rule.Enable > 0 {

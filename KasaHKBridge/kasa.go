@@ -24,19 +24,22 @@ var broadcasts []net.IP
 
 var pollInterval time.Duration = 30 * time.Second
 
-// avoid allocations in the main loops
+// avoid allocations in the main loops -- could pre-scramble these
 var relaySuccess = []byte(`{"system":{"set_relay_state":{"err_code":0}}}`)
 var emeterSuccess = []byte(`{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}`)
 var sysinfoPreamble = []byte(`"get_sysinfo"`)
 var emeterPreamble = []byte(`{"emeter":{"get_realtime":{`)
 
+const CHANGE_SLEEP_DURATION = (100 * time.Millisecond)
+
+var discoverCmd = kasa.Scramble(kasa.CmdGetSysinfo)
+
 type kasaDevice interface {
 	getA() *accessory.A
 	update(kasa.KasaDevice, net.IP)
-	updateEmeter(kasa.EmeterRealtime)
+	incomingEmeterData(kasa.EmeterRealtime)
 	getLastUpdate() time.Time
 	unreachable()
-	getIP() net.IP
 	getIPstring() string
 	getAlias() string
 	sysinfo() kasa.Sysinfo
@@ -109,8 +112,12 @@ func Listener(ctx context.Context, refresh chan bool) {
 			continue
 		}
 
+		if err := kd.GetSysinfo.Sysinfo.OK(); err != nil {
+			log.Info.Println(err)
+		}
+
 		if bytes.HasPrefix(d, emeterPreamble) {
-			updateEmeter(kd, addr.IP.String())
+			updateEmeter(kd.Emeter.Realtime, addr.IP.String())
 			continue
 		}
 
@@ -218,48 +225,17 @@ func poller(ctx context.Context) {
 	}
 }
 
-// discover, relay and brightness should be fast, skip the overhead of kasa.New()...
 func discover() {
-	payload := kasa.Scramble(kasa.CmdGetSysinfo)
-
 	for _, b := range broadcasts {
-		if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: b, Port: 9999}); err != nil {
+		if _, err := packetconn.WriteToUDP(discoverCmd, &net.UDPAddr{IP: b, Port: 9999}); err != nil {
 			log.Info.Printf("discovery failed for %s: %s", b.String(), err.Error())
 			continue
 		}
 	}
 }
 
-func setRelayState(ip net.IP, newstate bool) error {
-	cmd := fmt.Sprintf(kasa.CmdSetRelayState, boolToInt(newstate))
-	payload := kasa.Scramble(cmd)
-
-	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
-		log.Info.Printf("set relay state failed: %s", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func setBrightness(ip net.IP, brightness int) error {
-	cmd := fmt.Sprintf(kasa.CmdSetBrightness, brightness)
-	payload := kasa.Scramble(cmd)
-
-	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
-		log.Info.Printf("set brightness failed: %s", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-// this doesn't need to be fast...
 func setCountdown(ip net.IP, target bool, dur int) error {
-	k, err := newKasaIP(ip)
-	if err != nil {
-		return err
-	}
+	k, _ := newKasaIP(ip)
 
 	// remove any existing countdowns
 	if err := k.ClearCountdownRules(); err != nil {
@@ -276,21 +252,7 @@ func setCountdown(ip net.IP, target bool, dur int) error {
 	return nil
 }
 
-func setChildRelayState(ip net.IP, parent, child string, newstate bool) error {
-	full := fmt.Sprintf("%s%s", parent, child)
-
-	cmd := fmt.Sprintf(kasa.CmdSetRelayStateChild, full, boolToInt(newstate))
-	payload := kasa.Scramble(cmd)
-
-	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
-		log.Info.Printf("set child relay failed: %s", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func getEmeter(ip net.IP) error {
+func getEmeterUDP(ip net.IP) error {
 	payload := kasa.Scramble(kasa.CmdGetEmeter)
 
 	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
@@ -301,7 +263,7 @@ func getEmeter(ip net.IP) error {
 	return nil
 }
 
-func getEmeterChild(ip net.IP, parent, child string) error {
+func getEmeterChildUDP(ip net.IP, parent, child string) error {
 	full := fmt.Sprintf("%s%s", parent, child)
 
 	cmd := fmt.Sprintf(kasa.CmdGetEmeterChild, full)
@@ -315,15 +277,12 @@ func getEmeterChild(ip net.IP, parent, child string) error {
 	return nil
 }
 
-func updateEmeter(kd kasa.KasaDevice, ip string) error {
-	// why am I walking the list of devices if I already know?
-	// because we only have the emeter data, not the full kd
-
-	kasasMu.RLock()
+func updateEmeter(em kasa.EmeterRealtime, ip string) error {
 	// this is an acceptable O(n) loop given typical install sizes
+	kasasMu.RLock()
 	for _, device := range kasas {
 		if device.getIPstring() == ip {
-			device.updateEmeter(kd.Emeter.Realtime)
+			device.incomingEmeterData(em)
 		}
 	}
 	kasasMu.RUnlock()
@@ -339,15 +298,10 @@ func newKasaIP(ip net.IP) (*kasa.Device, error) {
 				log.Info.Printf("udp write failed: %s", err.Error())
 				return err
 			}
+			// so we don't overwhelm the breakers when 50 deviced get flipped at once
+			time.Sleep(CHANGE_SLEEP_DURATION)
 			return nil
 		},
 	}
 	return &d, nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

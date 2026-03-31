@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -50,20 +49,23 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))
-			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+			full := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID)
+			k, _ := newKasaIP(acc.ip)
+			if err := k.SetRelayStateChild(full, newstate); err != nil {
 				log.Info.Println(err.Error())
 				return
 			}
 			o.OutletInUse.SetValue(newstate)
-			time.Sleep(CHANGE_SLEEP_DURATION)
 		})
 
 		o.Name.OnValueRemoteUpdate(func(newname string) {
 			log.Info.Printf("[%s][%d] new name %s", acc.Sysinfo.Alias, idx, newname)
-			/* if err := setChildRelayName(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+			full := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID)
+			k, _ := newKasaIP(acc.ip)
+			if err := k.SetChildAlias(full, newname); err != nil {
 				log.Info.Println(err.Error())
 				return
-			} */
+			}
 		})
 
 		acc.Outlets[idx] = o

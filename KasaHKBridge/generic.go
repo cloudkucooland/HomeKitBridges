@@ -12,15 +12,13 @@ import (
 	"github.com/cloudkucooland/go-kasa"
 )
 
-const CHANGE_SLEEP_DURATION = (100 * time.Millisecond)
-
 // included in all device types
 type generic struct {
 	*accessory.A
 	lastUpdate   time.Time // last time the device responded
 	RSSI         *rssi
 	StatusActive *characteristic.StatusActive
-	ip           net.IP       // would probably be better to use string
+	ip           net.IP
 	Sysinfo      kasa.Sysinfo // contents of the last response from the device
 }
 
@@ -103,16 +101,17 @@ func (g *generic) setID() {
 	})
 }
 
-func (g *generic) genericUpdate(k kasa.KasaDevice, ip net.IP) {
+func (g *generic) genericUpdate(k kasa.KasaDevice, newip net.IP) {
 	// if it was not responding, but is now...
 	if !g.StatusActive.Value() {
 		log.Info.Printf("[%s] responding again", g.Sysinfo.Alias)
 		g.StatusActive.SetValue(true)
 	}
 
-	if g.ip.String() != ip.String() {
-		log.Info.Printf("updating ip address: [%s] -> [%s] (%s)", g.ip, ip, k.GetSysinfo.Sysinfo.Alias)
-		g.ip = ip
+	// netip.IP.Compare() exists but net.IP.Compare() does not
+	if g.ip.String() != newip.String() {
+		log.Info.Printf("updating ip address: [%s] -> [%s] (%s)", g.ip, newip, k.GetSysinfo.Sysinfo.Alias)
+		g.ip = newip
 	}
 
 	if g.Sysinfo.Alias != k.GetSysinfo.Sysinfo.Alias {
@@ -145,12 +144,8 @@ func kpm2hpm(kasaMode string) int {
 	return i
 }
 
-func (g *generic) updateEmeter(e kasa.EmeterRealtime) {
+func (g *generic) incomingEmeterData(e kasa.EmeterRealtime) {
 	log.Info.Printf("emeter update from non-emeter device: %s %+v", g.ip, e)
-}
-
-func (g *generic) getIP() net.IP {
-	return g.ip
 }
 
 func (g *generic) getIPstring() string {

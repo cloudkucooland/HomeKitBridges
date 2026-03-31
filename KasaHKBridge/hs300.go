@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -52,20 +51,23 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
 			log.Info.Printf("[%s][%d] %s", acc.Sysinfo.Alias, idx, boolToState(newstate))
-			if err := setChildRelayState(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+			full := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID)
+			k, _ := newKasaIP(acc.ip)
+			if err := k.SetRelayStateChild(full, newstate); err != nil {
 				log.Info.Println(err.Error())
 				return
 			}
 			o.OutletInUse.SetValue(newstate)
-			time.Sleep(CHANGE_SLEEP_DURATION)
 		})
 
 		o.Name.OnValueRemoteUpdate(func(newname string) {
 			log.Info.Printf("[%s][%d] new name %s", acc.Sysinfo.Alias, idx, newname)
-			/* if err := setChildRelayName(acc.ip, acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID, newstate); err != nil {
+			full := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID)
+			k, _ := newKasaIP(acc.ip)
+			if err := k.SetChildAlias(full, newname); err != nil {
 				log.Info.Println(err.Error())
 				return
-			} */
+			}
 		})
 
 		acc.Outlets[idx] = o
@@ -142,13 +144,13 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 		}
 
 		// request emeter data for each outlet
-		if err := getEmeterChild(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID); err != nil {
+		if err := getEmeterChildUDP(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID); err != nil {
 			log.Info.Println(err.Error())
 		}
 	}
 }
 
-func (h *HS300) updateEmeter(e kasa.EmeterRealtime) {
+func (h *HS300) incomingEmeterData(e kasa.EmeterRealtime) {
 	if int(e.Slot) >= len(h.Outlets) {
 		log.Info.Printf("slot out of bounds: %d", e.Slot)
 	}

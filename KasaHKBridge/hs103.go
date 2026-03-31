@@ -2,7 +2,6 @@ package kasahkbridge
 
 import (
 	"net"
-	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -37,12 +36,12 @@ func NewHS103(k kasa.KasaDevice, ip net.IP) *HS103 {
 
 	acc.Outlet.On.OnValueRemoteUpdate(func(newstate bool) {
 		log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(newstate))
-		if err := setRelayState(acc.ip, newstate); err != nil {
+		k, _ := newKasaIP(acc.ip)
+		if err := k.SetRelayState(newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
 		}
 		acc.Outlet.OutletInUse.SetValue(newstate)
-		time.Sleep(CHANGE_SLEEP_DURATION)
 	})
 
 	acc.Outlet.SetDuration.OnValueRemoteUpdate(func(when int) {
@@ -96,8 +95,8 @@ func NewHS103Svc() *HS103Svc {
 	return &svc
 }
 
-func (h *HS103) update(k kasa.KasaDevice, ip net.IP) {
-	h.genericUpdate(k, ip)
+func (h *HS103) update(k kasa.KasaDevice, newip net.IP) {
+	h.genericUpdate(k, newip)
 
 	if h.Outlet.On.Value() != (k.GetSysinfo.Sysinfo.RelayState > 0) {
 		log.Info.Printf("[%s] %s", k.GetSysinfo.Sysinfo.Alias, intToState(k.GetSysinfo.Sysinfo.RelayState))
@@ -109,13 +108,13 @@ func (h *HS103) update(k kasa.KasaDevice, ip net.IP) {
 		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
 		h.Outlet.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
 		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
-			d, _ := newKasaIP(h.getIP())
+			d, _ := newKasaIP(h.ip)
 			_ = d.ClearCountdownRules()
 		}
 	}
 
 	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
-		d, _ := newKasaIP(h.getIP())
+		d, _ := newKasaIP(h.ip)
 		rules, _ := d.GetCountdownRules()
 		for _, rule := range rules {
 			if rule.Enable > 0 {

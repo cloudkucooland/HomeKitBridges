@@ -2,7 +2,6 @@ package kasahkbridge
 
 import (
 	"net"
-	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -37,7 +36,8 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.On.OnValueRemoteUpdate(func(newstate bool) {
 		log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(newstate))
-		if err := setRelayState(acc.ip, newstate); err != nil {
+		k, _ := newKasaIP(acc.ip)
+		if err := k.SetRelayState(newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
 		}
@@ -48,11 +48,11 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 			return
 		}
 		log.Info.Printf("[%s] %d%%", acc.Sysinfo.Alias, newstate)
-		if err := setBrightness(acc.ip, newstate); err != nil {
+		k, _ := newKasaIP(acc.ip)
+		if err := k.SetBrightness(newstate); err != nil {
 			log.Info.Println(err.Error())
 			return
 		}
-		time.Sleep(CHANGE_SLEEP_DURATION)
 	})
 
 	acc.Lightbulb.SetDuration.OnValueRemoteUpdate(func(when int) {
@@ -67,7 +67,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.FadeOnTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting fade on time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := newKasaIP(acc.getIP())
+		kd, _ := newKasaIP(acc.ip)
 		if err := kd.SetFadeOnTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -76,7 +76,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.FadeOffTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting fade off time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := newKasaIP(acc.getIP())
+		kd, _ := newKasaIP(acc.ip)
 		if err := kd.SetFadeOffTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -85,7 +85,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.GentleOnTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting gentle on time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := newKasaIP(acc.getIP())
+		kd, _ := newKasaIP(acc.ip)
 		if err := kd.SetGentleOnTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -94,7 +94,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.GentleOffTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting gentle off time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := newKasaIP(acc.getIP())
+		kd, _ := newKasaIP(acc.ip)
 		if err := kd.SetGentleOffTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
