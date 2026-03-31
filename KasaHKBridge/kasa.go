@@ -256,7 +256,7 @@ func setBrightness(ip net.IP, brightness int) error {
 
 // this doesn't need to be fast...
 func setCountdown(ip net.IP, target bool, dur int) error {
-	k, err := kasa.NewDeviceIP(ip)
+	k, err := newKasaIP(ip)
 	if err != nil {
 		return err
 	}
@@ -329,6 +329,20 @@ func updateEmeter(kd kasa.KasaDevice, ip string) error {
 	kasasMu.RUnlock()
 
 	return nil
+}
+
+func newKasaIP(ip net.IP) (*kasa.Device, error) {
+	d := kasa.Device{
+		IP: ip,
+		OverrideUDP: func(ctx context.Context, cmd string) error {
+			if _, err := packetconn.WriteToUDP(kasa.Scramble(cmd), &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
+				log.Info.Printf("udp write failed: %s", err.Error())
+				return err
+			}
+			return nil
+		},
+	}
+	return &d, nil
 }
 
 func boolToInt(b bool) int {

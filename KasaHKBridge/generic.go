@@ -45,7 +45,7 @@ func (g *generic) unreachable() {
 	g.StatusActive.SetValue(false)
 
 	// try conecting using a TCP connection to see if it is really down or just dropping UDP
-	k, err := kasa.NewDeviceIP(g.ip)
+	k, err := newKasaIP(g.ip)
 	if err != nil {
 		log.Info.Println(err.Error())
 		return

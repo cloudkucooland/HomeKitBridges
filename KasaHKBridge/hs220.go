@@ -67,7 +67,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.FadeOnTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting fade on time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := kasa.NewDeviceIP(acc.getIP())
+		kd, _ := newKasaIP(acc.getIP())
 		if err := kd.SetFadeOnTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -76,7 +76,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.FadeOffTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting fade off time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := kasa.NewDeviceIP(acc.getIP())
+		kd, _ := newKasaIP(acc.getIP())
 		if err := kd.SetFadeOffTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -85,7 +85,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.GentleOnTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting gentle on time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := kasa.NewDeviceIP(acc.getIP())
+		kd, _ := newKasaIP(acc.getIP())
 		if err := kd.SetGentleOnTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -94,7 +94,7 @@ func NewHS220(k kasa.KasaDevice, ip net.IP) *HS220 {
 
 	acc.Lightbulb.GentleOffTime.OnValueRemoteUpdate(func(when int) {
 		log.Info.Printf("setting gentle off time [%s] to [%d]", acc.Sysinfo.Alias, when)
-		kd, _ := kasa.NewDeviceIP(acc.getIP())
+		kd, _ := newKasaIP(acc.getIP())
 		if err := kd.SetGentleOffTime(when); err != nil {
 			log.Info.Println(err.Error())
 			return
@@ -162,7 +162,7 @@ func NewHS220Svc(ip net.IP) *HS220Svc {
 	svc.AddC(svc.MinThreshold.C) // nope -- 3 years later, what is this nope?
 
 	// GetDimmerParameters is TCP and causes delays on restart when loading from cache
-	k, _ := kasa.NewDeviceIP(ip)
+	k, _ := newKasaIP(ip)
 	dimmer, err := k.GetDimmerParameters()
 	if err != nil {
 		return &svc
@@ -182,7 +182,7 @@ func NewHS220Svc(ip net.IP) *HS220Svc {
 
 func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 	h.genericUpdate(k, ip)
-	d, _ := kasa.NewDeviceIP(ip)
+	d, _ := newKasaIP(ip)
 
 	if h.Lightbulb.On.Value() != (k.GetSysinfo.Sysinfo.RelayState > 0) {
 		log.Info.Printf("[%s] %s", k.GetSysinfo.Sysinfo.Alias, intToState(k.GetSysinfo.Sysinfo.RelayState))
