@@ -29,6 +29,7 @@ var relaySuccess = []byte(`{"system":{"set_relay_state":{"err_code":0}}}`)
 var emeterSuccess = []byte(`{"smartlife.iot.dimmer":{"set_brightness":{"err_code":0}}}`)
 var sysinfoPreamble = []byte(`"get_sysinfo"`)
 var emeterPreamble = []byte(`{"emeter":{"get_realtime":{`)
+var dimmerPreamble = []byte(`{"smartlife.iot.dimmer":{"get_dimmer_parameters":{`)
 
 const CHANGE_SLEEP_DURATION = (100 * time.Millisecond)
 
@@ -38,6 +39,7 @@ type kasaDevice interface {
 	getA() *accessory.A
 	update(kasa.KasaDevice, net.IP)
 	incomingEmeterData(kasa.EmeterRealtime)
+	incomingDimmerData(kasa.Dimmer)
 	getLastUpdate() time.Time
 	unreachable()
 	getIPstring() string
@@ -101,7 +103,7 @@ func Listener(ctx context.Context, refresh chan bool) {
 			continue
 		}
 
-		if !(bytes.Contains(d, sysinfoPreamble) || bytes.HasPrefix(d, emeterPreamble)) {
+		if !(bytes.Contains(d, sysinfoPreamble) || bytes.HasPrefix(d, emeterPreamble) || bytes.HasPrefix(d, dimmerPreamble)) {
 			log.Info.Printf("unknown message from %s: %s", addr.IP.String(), string(d))
 			continue
 		}
@@ -118,6 +120,11 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 		if bytes.HasPrefix(d, emeterPreamble) {
 			updateEmeter(kd.Emeter.Realtime, addr.IP.String())
+			continue
+		}
+
+		if bytes.HasPrefix(d, dimmerPreamble) {
+			updateDimmer(kd.Dimmer, addr.IP.String())
 			continue
 		}
 
@@ -277,12 +284,36 @@ func getEmeterChildUDP(ip net.IP, parent, child string) error {
 	return nil
 }
 
+func getDimmerParametersUDP(ip net.IP) error {
+	payload := kasa.Scramble(kasa.CmdGetDimmer)
+
+	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
+		log.Info.Printf("get dimmer parameters failed: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
 func updateEmeter(em kasa.EmeterRealtime, ip string) error {
 	// this is an acceptable O(n) loop given typical install sizes
 	kasasMu.RLock()
 	for _, device := range kasas {
 		if device.getIPstring() == ip {
 			device.incomingEmeterData(em)
+		}
+	}
+	kasasMu.RUnlock()
+
+	return nil
+}
+
+func updateDimmer(dim kasa.Dimmer, ip string) error {
+	// this is an acceptable O(n) loop given typical install sizes
+	kasasMu.RLock()
+	for _, device := range kasas {
+		if device.getIPstring() == ip {
+			device.incomingDimmerData(dim)
 		}
 	}
 	kasasMu.RUnlock()

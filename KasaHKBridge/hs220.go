@@ -156,27 +156,14 @@ func NewHS220Svc(ip net.IP) *HS220Svc {
 	svc.AddC(svc.GentleOffTime.C)
 
 	svc.RampRate = NewRampRate()
-	svc.AddC(svc.RampRate.C) // nope -- 3 years later, what is this nope?
+	svc.AddC(svc.RampRate.C)
 
 	svc.MinThreshold = NewMinThreshold()
-	svc.AddC(svc.MinThreshold.C) // nope -- 3 years later, what is this nope?
-
-	// GetDimmerParameters is TCP and causes delays on restart when loading from cache
-	k, _ := newKasaIP(ip)
-	dimmer, err := k.GetDimmerParameters()
-	if err != nil {
-		return &svc
-	}
-
-	svc.FadeOnTime.SetValue(int(dimmer.FadeOnTime))
-	svc.FadeOffTime.SetValue(int(dimmer.FadeOffTime))
-	svc.GentleOnTime.SetValue(int(dimmer.GentleOnTime))
-	svc.GentleOffTime.SetValue(int(dimmer.GentleOffTime))
-	svc.RampRate.SetValue(int(dimmer.RampRate))
-	svc.MinThreshold.SetValue(int(dimmer.MinThreshold))
+	svc.AddC(svc.MinThreshold.C)
 
 	svc.S.Primary = true
 
+	getDimmerParametersUDP(ip)
 	return &svc
 }
 
@@ -214,7 +201,33 @@ func (h *HS220) update(k kasa.KasaDevice, ip net.IP) {
 		h.Lightbulb.RemainingDuration.SetValue(0)
 	}
 
-	// request dimmer parameters on broadcast
+	// almost certainly pointless since these so rarely change, maybe run once a day?
+	getDimmerParametersUDP(ip)
 }
 
-// TODO add update on dimmer parameters
+func (h *HS220) incomingDimmerData(dim kasa.Dimmer) {
+	if h.Lightbulb.MinThreshold.Value() != int(dim.Parameters.MinThreshold) {
+		log.Info.Printf("updating MinThreshold: [%d] => [%d]", h.Lightbulb.MinThreshold.Value(), dim.Parameters.MinThreshold)
+		h.Lightbulb.MinThreshold.SetValue(int(dim.Parameters.MinThreshold))
+	}
+	if h.Lightbulb.FadeOnTime.Value() != int(dim.Parameters.FadeOnTime) {
+		log.Info.Printf("updating FadeOnTime: [%d] => [%d]", h.Lightbulb.FadeOnTime.Value(), dim.Parameters.FadeOnTime)
+		h.Lightbulb.FadeOnTime.SetValue(int(dim.Parameters.FadeOnTime))
+	}
+	if h.Lightbulb.FadeOffTime.Value() != int(dim.Parameters.FadeOffTime) {
+		log.Info.Printf("updating FadeOffTime: [%d] => [%d]", h.Lightbulb.FadeOffTime.Value(), dim.Parameters.FadeOffTime)
+		h.Lightbulb.FadeOffTime.SetValue(int(dim.Parameters.FadeOffTime))
+	}
+	if h.Lightbulb.GentleOnTime.Value() != int(dim.Parameters.GentleOnTime) {
+		log.Info.Printf("updating GentleOnTime: [%d] => [%d]", h.Lightbulb.GentleOnTime.Value(), dim.Parameters.GentleOnTime)
+		h.Lightbulb.GentleOnTime.SetValue(int(dim.Parameters.GentleOnTime))
+	}
+	if h.Lightbulb.GentleOffTime.Value() != int(dim.Parameters.GentleOffTime) {
+		log.Info.Printf("updating GentleOffTime: [%d] => [%d]", h.Lightbulb.GentleOffTime.Value(), dim.Parameters.GentleOffTime)
+		h.Lightbulb.GentleOffTime.SetValue(int(dim.Parameters.GentleOffTime))
+	}
+	if h.Lightbulb.RampRate.Value() != int(dim.Parameters.RampRate) {
+		log.Info.Printf("updating RampRate: [%d] => [%d]", h.Lightbulb.RampRate.Value(), dim.Parameters.RampRate)
+		h.Lightbulb.RampRate.SetValue(int(dim.Parameters.RampRate))
+	}
+}

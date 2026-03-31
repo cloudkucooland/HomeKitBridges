@@ -148,6 +148,10 @@ func (g *generic) incomingEmeterData(e kasa.EmeterRealtime) {
 	log.Info.Printf("emeter update from non-emeter device: %s %+v", g.ip, e)
 }
 
+func (g *generic) incomingDimmerData(e kasa.Dimmer) {
+	log.Info.Printf("dimmer update from non-dimmer device: %s %+v", g.ip, e)
+}
+
 func (g *generic) getIPstring() string {
 	return g.ip.String()
 }
