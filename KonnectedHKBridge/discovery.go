@@ -1,6 +1,7 @@
 package konnectedkhbridge
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/brutella/hap/log"
@@ -37,12 +38,10 @@ func discover(mac string) string {
 		}
 
 		log.Info.Printf("found: %s for %s", device.Root.URLBaseStr, mac)
-		s := strings.Split(device.Root.URLBaseStr, "/")
-		if len(s) < 3 {
-			log.Info.Printf("found device, wrong url format")
-			continue
+		u, err := url.Parse(device.Root.URLBaseStr)
+		if err == nil {
+			return u.Host
 		}
-		return s[2]
 	}
 	return ""
 }

@@ -45,9 +45,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, jsonOK)
 			return
 		}
-		if sentToken[7:] != k.password {
+		if len(sentToken) < 7 || sentToken[:7] != "Bearer " || sentToken[7:] != k.password {
 			log.Info.Println("Authorization token invalid")
-			// http.Error(w, `{ "status": "bad" }`, http.StatusForbidden)
+			// http.Error(w, `{ "status": "forbidden" }`, http.StatusForbidden)
 			fmt.Fprint(w, jsonOK)
 			return
 		}
@@ -87,14 +87,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// if konnected provisioned with a trailing / on the url..
-	if string(jBlob) == "" {
+	if len(jBlob) == 0 {
 		log.Info.Printf("konnected: sent empty message")
 		// acknowledge the notice so it doesn't retransmit
 		fmt.Fprint(w, jsonOK)
 		// trigger a manual pull
-		if err := k.getStatusAndUpdate(); err != nil {
-			log.Info.Println(err.Error())
-		}
+		go k.getStatusAndUpdate()
 		return
 	}
 
@@ -184,7 +182,9 @@ func HTTPServer(ctx context.Context, addr string) {
 	go srv.ListenAndServe()
 	<-ctx.Done()
 	log.Info.Printf("stopping http service")
-	srv.Shutdown(context.Background())
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Info.Println("HTTP server shutdown error:", err)
+	}
 }
 
 // for when we support multiple devices
