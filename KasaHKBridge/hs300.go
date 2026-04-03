@@ -34,19 +34,19 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		idx := i // local scope
 
 		o := newHS300OutletSvc()
-		acc.AddS(o.S)
 		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
+		// log.Info.Printf("Outlet AccID: %s",id)
 		o.AccIdentifier.SetValue(id)
-		o.ID.SetValue(idx)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
 			// log.Info.Printf("Outlet ID: %d", int(dx))
 			// overwrite with "globally" unique values
 			o.ID.SetValue(int(dx))
+			o.Id = uint64(dx)
 		}
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {
@@ -70,6 +70,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 			}
 		})
 
+		acc.AddS(o.S)
 		acc.Outlets[idx] = o
 	}
 
@@ -88,6 +89,8 @@ type hs300outletSvc struct {
 	Volt *volt
 	Watt *watt
 	Amp  *amp
+
+	StatusFault *characteristic.StatusFault
 }
 
 func newHS300OutletSvc() *hs300outletSvc {
@@ -119,11 +122,15 @@ func newHS300OutletSvc() *hs300outletSvc {
 
 	svc.Watt = NewWatt()
 	svc.AddC(svc.Watt.C)
-	svc.Watt.SetValue(1)
+	svc.Watt.SetValue(0)
 
 	svc.Amp = NewAmp()
 	svc.AddC(svc.Amp.C)
-	svc.Amp.SetValue(1)
+	svc.Amp.SetValue(0)
+
+	svc.StatusFault = characteristic.NewStatusFault()
+	svc.AddC(svc.StatusFault.C)
+	svc.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 
 	return &svc
 }
@@ -146,6 +153,18 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 		// request emeter data for each outlet
 		if err := getEmeterChildUDP(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID); err != nil {
 			log.Info.Println(err.Error())
+		}
+
+		if h.Outlets[i].On.Value() && h.Outlets[i].Amp.Value() < 10 {
+			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultNoFault {
+				log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Children[i].Alias)
+				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+			}
+		} else {
+			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+				log.Info.Printf("[%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Children[i].Alias)
+				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultNoFault)
+			}
 		}
 	}
 }

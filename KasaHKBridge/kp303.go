@@ -40,11 +40,13 @@ func NewKP303(k kasa.KasaDevice, ip net.IP) *KP303 {
 		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
 		o.AccIdentifier.SetValue(id)
-		o.ID.SetValue(idx)
+		// log.Info.Printf("Outlet AccID: %s",id)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
+			// log.Info.Printf("Outlet ID: %d", int(dx))
 			o.ID.SetValue(int(dx))
+			o.Id = uint64(dx)
 		}
 
 		o.On.OnValueRemoteUpdate(func(newstate bool) {

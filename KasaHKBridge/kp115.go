@@ -71,6 +71,8 @@ type KP115Svc struct {
 	Volt              *volt
 	Watt              *watt
 	Amp               *amp
+
+	StatusFault *characteristic.StatusFault
 }
 
 func NewKP115Svc() *KP115Svc {
@@ -105,6 +107,10 @@ func NewKP115Svc() *KP115Svc {
 	svc.Amp = NewAmp()
 	svc.AddC(svc.Amp.C)
 	svc.Amp.SetValue(1)
+
+	svc.StatusFault = characteristic.NewStatusFault()
+	svc.AddC(svc.StatusFault.C)
+	svc.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 
 	svc.S.Primary = true
 
@@ -146,6 +152,18 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 	// request emeter data over UDP, kd.GetEmeter() is TCP
 	if err := getEmeterUDP(h.ip); err != nil {
 		return
+	}
+
+	if h.Outlet.On.Value() && h.Outlet.Amp.Value() < 10 {
+		if h.Outlet.StatusFault.Value() == characteristic.StatusFaultNoFault {
+			log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Alias)
+			h.Outlet.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+		}
+	} else {
+		if h.Outlet.StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			log.Info.Printf("[%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Alias)
+			h.Outlet.StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		}
 	}
 }
 

@@ -18,6 +18,7 @@ type generic struct {
 	lastUpdate   time.Time // last time the device responded
 	RSSI         *rssi
 	StatusActive *characteristic.StatusActive
+	StatusFault  *characteristic.StatusFault
 	ip           net.IP
 	Sysinfo      kasa.Sysinfo // contents of the last response from the device
 }
@@ -41,6 +42,7 @@ func (g *generic) unreachable() {
 
 	log.Info.Printf("[%s] has not responded", g.Sysinfo.Alias)
 	g.StatusActive.SetValue(false)
+	g.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
 
 	// try conecting using a TCP connection to see if it is really down or just dropping UDP
 	k, err := newKasaIP(g.ip)
@@ -67,6 +69,8 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 	g.RSSI = NewRSSI()
 	g.StatusActive = characteristic.NewStatusActive()
 	g.StatusActive.SetValue(true)
+	g.StatusFault = characteristic.NewStatusFault()
+	g.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 
 	info := accessory.Info{
 		Name:         k.Alias,
@@ -106,6 +110,7 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, newip net.IP) {
 	if !g.StatusActive.Value() {
 		log.Info.Printf("[%s] responding again", g.Sysinfo.Alias)
 		g.StatusActive.SetValue(true)
+		g.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 	}
 
 	// netip.IP.Compare() exists but net.IP.Compare() does not
