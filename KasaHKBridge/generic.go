@@ -54,11 +54,6 @@ func (g *generic) unreachable() {
 		log.Info.Println(err.Error())
 		return
 	}
-
-	/* log.Info.Printf("[%s] sending reboot", g.Sysinfo.Alias)
-	if err := k.Reboot(); err != nil {
-		log.Info.Printf(err.Error())
-	} */
 }
 
 func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
@@ -74,10 +69,10 @@ func (g *generic) configure(k kasa.Sysinfo, ip net.IP) accessory.Info {
 
 	info := accessory.Info{
 		Name:         k.Alias,
-		SerialNumber: k.DeviceID,
-		Manufacturer: "TP-Link Kasa Smart",
-		Model:        k.Model,
-		Firmware:     k.SWVersion,
+		SerialNumber: k.DeviceID,           // deprecated
+		Manufacturer: "TP-Link Kasa Smart", // deprecated
+		Model:        k.Model,              // deprecated
+		Firmware:     k.SWVersion,          // deprecated
 	}
 
 	return info
@@ -98,7 +93,7 @@ func (g *generic) setID() {
 
 	g.Info.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 
-	// doesn't ever send
+	// doesn't ever send -- Apple removed this from HomeKit ~2019
 	g.Info.Name.OnValueRemoteUpdate(func(newname string) {
 		log.Info.Printf("[%s] renamed to %s", g.Sysinfo.Alias, newname)
 		// rename it on the device...
@@ -122,6 +117,7 @@ func (g *generic) genericUpdate(k kasa.KasaDevice, newip net.IP) {
 	if g.Sysinfo.Alias != k.GetSysinfo.Sysinfo.Alias {
 		log.Info.Printf("renaming: [%s] -> [%s]", g.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Alias)
 		g.Sysinfo.Alias = k.GetSysinfo.Sysinfo.Alias
+		// HomeKit now ignores this
 		g.Info.Name.SetValue(k.GetSysinfo.Sysinfo.Alias)
 	}
 

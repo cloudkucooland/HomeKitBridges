@@ -10,13 +10,14 @@ import (
 // amps E863F126-079E-48FF-8F27-9C2605A29F52
 // watt E863F10D-079E-48FF-8F27-9C2605A29F52
 // kwh  E863F10C-079E-48FF-8F27-9C2605A29F52
+// k volt amp hour E863F127-079E-48FF-8F27-9C2605A29F52
+// volt amps E863F110-079E-48FF-8F27-9C2605A29F52
 
 type volt struct {
 	*characteristic.Int
 }
 
 func NewVolt() *volt {
-	// c := characteristic.NewInt("E863F10A")
 	c := characteristic.NewInt("E863F10A-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
@@ -32,7 +33,6 @@ type watt struct {
 }
 
 func NewWatt() *watt {
-	// c := characteristic.NewInt("E863F10D")
 	c := characteristic.NewInt("E863F10D-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
@@ -48,7 +48,6 @@ type amp struct {
 }
 
 func NewAmp() *amp {
-	// c := characteristic.NewInt("E863F126")
 	c := characteristic.NewInt("E863F126-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}
@@ -73,7 +72,6 @@ type fadeOnTime struct {
 }
 
 func NewFadeOnTime() *fadeOnTime {
-	// c := characteristic.NewInt("E8700110")
 	c := characteristic.NewInt("E8700110-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
@@ -91,7 +89,6 @@ type fadeOffTime struct {
 }
 
 func NewFadeOffTime() *fadeOffTime {
-	// c := characteristic.NewInt("E8700111")
 	c := characteristic.NewInt("E8700111-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
@@ -109,7 +106,6 @@ type gentleOnTime struct {
 }
 
 func NewGentleOnTime() *gentleOnTime {
-	// c := characteristic.NewInt("E8700112")
 	c := characteristic.NewInt("E8700112-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
@@ -127,7 +123,6 @@ type gentleOffTime struct {
 }
 
 func NewGentleOffTime() *gentleOffTime {
-	// c := characteristic.NewInt("E8700113")
 	c := characteristic.NewInt("E8700113-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
@@ -145,7 +140,6 @@ type rampRate struct {
 }
 
 func NewRampRate() *rampRate {
-	// c := characteristic.NewInt("E8700114")
 	c := characteristic.NewInt("E8700114-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
@@ -163,7 +157,6 @@ type minThreshold struct {
 }
 
 func NewMinThreshold() *minThreshold {
-	// c := characteristic.NewInt("E8700115")
 	c := characteristic.NewInt("E8700115-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatUInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
@@ -181,7 +174,6 @@ type rssi struct {
 }
 
 func NewRSSI() *rssi {
-	// c := characteristic.NewInt("E8700116")
 	c := characteristic.NewInt("E8700116-079E-48FF-8F27-9C2605A29F52")
 	c.Format = characteristic.FormatInt32
 	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionEvents}

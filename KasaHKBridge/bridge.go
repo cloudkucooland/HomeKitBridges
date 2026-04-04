@@ -18,13 +18,12 @@ func Bridge() *accessory.A {
 		SerialNumber: "1101",
 		Manufacturer: "cloudkucooland",
 		Model:        "kasa-homekit",
-		Firmware:     "0.0.4",
+		Firmware:     "0.0.5",
 	})
 	root.A.Id = 1
 
 	// create the settings service
 	settings := settingsService{}
-	// settings.S = service.New("E880") // custom
 	settings.S = service.New("E8800000-0000-1000-8000-0026BB765291") // custom
 
 	// doesn't seem to work
@@ -36,10 +35,11 @@ func Bridge() *accessory.A {
 	settings.S.AddC(settings.PollRate.C)
 	// causes a hang
 	/* settings.PollRate.OnValueRemoteUpdate(func(newstate int) {
-			log.Info.Printf("setting poll rate: %d", newstate)
-			pollInterval = time.Second * time.Duration(newstate)
-	        // write to config file or other data store
-		}) */
+				log.Info.Printf("setting poll rate: %d", newstate)
+				pollInterval = time.Second * time.Duration(newstate)
+		        // write to datastore
+	            // restart the poller (this is the hard part)
+			}) */
 
 	root.A.AddS(settings.S)
 
@@ -59,9 +59,9 @@ type pollRate struct {
 }
 
 func newPollRate() *pollRate {
-	c := characteristic.NewInt("E8802")
+	c := characteristic.NewInt("E8802000-0000-1000-8000-0026BB765291")
 	c.Format = characteristic.FormatUInt32
-	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
+	c.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite, characteristic.PermissionEvents}
 	c.Description = "Poll Rate"
 	c.Unit = "seconds"
 	c.SetMinValue(10)
