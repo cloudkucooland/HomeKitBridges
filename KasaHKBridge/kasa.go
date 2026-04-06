@@ -324,6 +324,7 @@ func updateDimmer(dim kasa.Dimmer, ip string) error {
 func newKasaIP(ip net.IP) (*kasa.Device, error) {
 	d := kasa.Device{
 		IP: ip,
+        Port: 9999,
 		OverrideUDP: func(ctx context.Context, cmd string) error {
 			if _, err := packetconn.WriteToUDP(kasa.Scramble(cmd), &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
 				log.Info.Printf("udp write failed: %s", err.Error())

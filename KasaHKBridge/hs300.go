@@ -38,13 +38,10 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
 		id := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID[32:], acc.Sysinfo.Children[idx].ID)
-		// log.Info.Printf("Outlet AccID: %s",id)
 		o.AccIdentifier.SetValue(id)
 		if dx, err := strconv.ParseInt(id, 16, 64); err != nil {
 			log.Info.Println(err.Error())
 		} else {
-			// log.Info.Printf("Outlet ID: %d", int(dx))
-			// overwrite with "globally" unique values
 			o.ID.SetValue(int(dx))
 			o.Id = uint64(dx)
 		}
@@ -162,9 +159,17 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 			}
 		} else {
 			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
-				log.Info.Printf("[%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Children[i].Alias)
+				log.Info.Printf("CLEAR: [%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Children[i].Alias)
 				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultNoFault)
 			}
+		}
+
+		v := h.Outlets[i].Volt.Value()
+		if v < 114 {
+			log.Info.Printf("ALERT: [%s][%s] low voltage: %dV", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Children[i].Alias, v)
+		}
+		if v > 127 {
+			log.Info.Printf("ALERT: [%s][%s] high voltage: %dV", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Children[i].Alias, v)
 		}
 	}
 }

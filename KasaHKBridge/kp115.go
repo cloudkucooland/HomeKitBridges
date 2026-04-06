@@ -29,6 +29,7 @@ func NewKP115(k kasa.KasaDevice, ip net.IP) *KP115 {
 	acc.Outlet = NewKP115Svc()
 	acc.AddS(acc.Outlet.S)
 	acc.Outlet.AddC(acc.generic.StatusActive.C)
+	acc.Outlet.AddC(acc.generic.StatusFault.C)
 
 	// set intial state
 	acc.Outlet.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
@@ -164,6 +165,14 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 			log.Info.Printf("[%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Alias)
 			h.Outlet.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 		}
+	}
+
+	v := h.Outlet.Volt.Value()
+	if v < 114 {
+		log.Info.Printf("ALERT: [%s] low voltage: %d", k.GetSysinfo.Sysinfo.Alias, v)
+	}
+	if v > 127 {
+		log.Info.Printf("ALERT: [%s] high voltage: %d", k.GetSysinfo.Sysinfo.Alias, v)
 	}
 }
 
