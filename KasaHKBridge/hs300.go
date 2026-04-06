@@ -154,12 +154,12 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 
 		if h.Outlets[i].On.Value() && h.Outlets[i].Amp.Value() < 10 {
 			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultNoFault {
-				log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Children[i].Alias)
+				// log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Children[i].Alias)
 				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
 			}
 		} else {
 			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
-				log.Info.Printf("CLEAR: [%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Children[i].Alias)
+				// log.Info.Printf("CLEAR: [%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Children[i].Alias)
 				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultNoFault)
 			}
 		}

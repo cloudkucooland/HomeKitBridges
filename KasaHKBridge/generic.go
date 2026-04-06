@@ -153,6 +153,10 @@ func (g *generic) incomingDimmerData(e kasa.Dimmer) {
 	log.Info.Printf("dimmer update from non-dimmer device: %s %+v", g.ip, e)
 }
 
+func (g *generic) incomingBrightnessData(e kasa.LightSensorBrightness) {
+	log.Info.Printf("brightness update from non-brightness device: %s %+v", g.ip, e)
+}
+
 func (g *generic) getIPstring() string {
 	return g.ip.String()
 }

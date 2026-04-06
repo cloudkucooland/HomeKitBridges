@@ -30,6 +30,7 @@ var emeterSuccess = []byte(`{"smartlife.iot.dimmer":{"set_brightness":{"err_code
 var sysinfoPreamble = []byte(`"get_sysinfo"`)
 var emeterPreamble = []byte(`{"emeter":{"get_realtime":{`)
 var dimmerPreamble = []byte(`{"smartlife.iot.dimmer":{"get_dimmer_parameters":{`)
+var brightnessPreamble = []byte(`{"smartlife.iot.LAS":{"get_current_brt":{"value"`)
 
 const CHANGE_SLEEP_DURATION = (100 * time.Millisecond)
 
@@ -40,6 +41,7 @@ type kasaDevice interface {
 	update(kasa.KasaDevice, net.IP)
 	incomingEmeterData(kasa.EmeterRealtime)
 	incomingDimmerData(kasa.Dimmer)
+	incomingBrightnessData(kasa.LightSensorBrightness)
 	getLastUpdate() time.Time
 	unreachable()
 	getIPstring() string
@@ -57,13 +59,14 @@ func wrap[T kasaDevice](fn func(kasa.KasaDevice, net.IP) T) factoryFunc {
 }
 
 var deviceFactories = map[string]func(kasa.KasaDevice, net.IP) kasaDevice{
-	"HS103(US)": wrap(NewHS103),
-	"HS200(US)": wrap(NewHS200),
-	"HS210(US)": wrap(NewHS200),
-	"HS220(US)": wrap(NewHS220),
-	"KP115(US)": wrap(NewKP115),
-	"KP303(US)": wrap(NewKP303),
-	"HS300(US)": wrap(NewHS300),
+	"HS103(US)":  wrap(NewHS103),
+	"HS200(US)":  wrap(NewHS200),
+	"HS210(US)":  wrap(NewHS200),
+	"HS220(US)":  wrap(NewHS220),
+	"HS300(US)":  wrap(NewHS300),
+	"KP115(US)":  wrap(NewKP115),
+	"KP303(US)":  wrap(NewKP303),
+	"KS200M(US)": wrap(NewKS200m),
 }
 
 // Listener is the go process that listens for UDP responses from the Kasa devices
@@ -103,7 +106,10 @@ func Listener(ctx context.Context, refresh chan bool) {
 			continue
 		}
 
-		if !(bytes.Contains(d, sysinfoPreamble) || bytes.HasPrefix(d, emeterPreamble) || bytes.HasPrefix(d, dimmerPreamble)) {
+		if !(bytes.Contains(d, sysinfoPreamble) ||
+			bytes.HasPrefix(d, emeterPreamble) ||
+			bytes.HasPrefix(d, dimmerPreamble) ||
+			bytes.HasPrefix(d, brightnessPreamble)) {
 			log.Info.Printf("unknown message from %s: %s", addr.IP.String(), string(d))
 			continue
 		}
@@ -116,6 +122,7 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 		if err := kd.GetSysinfo.Sysinfo.OK(); err != nil {
 			log.Info.Println(err)
+			continue
 		}
 
 		if bytes.HasPrefix(d, emeterPreamble) {
@@ -125,6 +132,11 @@ func Listener(ctx context.Context, refresh chan bool) {
 
 		if bytes.HasPrefix(d, dimmerPreamble) {
 			updateDimmer(kd.Dimmer, addr.IP.String())
+			continue
+		}
+
+		if bytes.HasPrefix(d, brightnessPreamble) {
+			updateBrightness(kd.LightSensor.GetBrightness, addr.IP.String())
 			continue
 		}
 
@@ -321,10 +333,34 @@ func updateDimmer(dim kasa.Dimmer, ip string) error {
 	return nil
 }
 
+func getBrightnessUDP(ip net.IP) error {
+	payload := kasa.Scramble(kasa.CmdGetCurrentBrightness)
+
+	if _, err := packetconn.WriteToUDP(payload, &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
+		log.Info.Printf("get brightness failed: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func updateBrightness(b kasa.LightSensorBrightness, ip string) error {
+	// this is an acceptable O(n) loop given typical install sizes
+	kasasMu.RLock()
+	for _, device := range kasas {
+		if device.getIPstring() == ip {
+			device.incomingBrightnessData(b)
+		}
+	}
+	kasasMu.RUnlock()
+
+	return nil
+}
+
 func newKasaIP(ip net.IP) (*kasa.Device, error) {
 	d := kasa.Device{
-		IP: ip,
-        Port: 9999,
+		IP:   ip,
+		Port: 9999,
 		OverrideUDP: func(ctx context.Context, cmd string) error {
 			if _, err := packetconn.WriteToUDP(kasa.Scramble(cmd), &net.UDPAddr{IP: ip, Port: 9999}); err != nil {
 				log.Info.Printf("udp write failed: %s", err.Error())

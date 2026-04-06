@@ -1,0 +1,138 @@
+package kasahkbridge
+
+import (
+	"net"
+
+	"github.com/brutella/hap/accessory"
+	"github.com/brutella/hap/characteristic"
+	"github.com/brutella/hap/log"
+	"github.com/brutella/hap/service"
+
+	"github.com/cloudkucooland/go-kasa"
+)
+
+type KS200m struct {
+	*generic
+
+	Switch *KS200mSwitchSvc
+	Light  *service.LightSensor
+	Motion *service.MotionSensor
+}
+
+func NewKS200m(k kasa.KasaDevice, ip net.IP) *KS200m {
+	acc := KS200m{}
+	acc.generic = &generic{}
+
+	info := acc.configure(k.GetSysinfo.Sysinfo, ip)
+	acc.A = accessory.New(info, accessory.TypeSwitch)
+	acc.setID()
+
+	acc.Switch = NewKS200mSwitchSvc()
+	acc.AddS(acc.Switch.S)
+	acc.Switch.AddC(acc.generic.StatusActive.C)
+	acc.Switch.AddC(acc.generic.StatusFault.C)
+
+	acc.Switch.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
+	pm := kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode)
+	acc.Switch.ProgramMode.SetValue(pm)
+
+	acc.Switch.On.OnValueRemoteUpdate(func(newstate bool) {
+		log.Info.Printf("[%s] %s", acc.Sysinfo.Alias, boolToState(newstate))
+		k, _ := newKasaIP(acc.ip)
+		if err := k.SetRelayState(newstate); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+	})
+
+	acc.Switch.SetDuration.OnValueRemoteUpdate(func(when int) {
+		log.Info.Printf("setting duration [%s] to [%d]", acc.Sysinfo.Alias, when)
+		if err := setCountdown(acc.ip, !acc.Switch.On.Value(), when); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+		acc.Switch.ProgramMode.SetValue(characteristic.ProgramModeProgramScheduled)
+		acc.Switch.RemainingDuration.SetValue(when)
+	})
+
+	acc.Motion = service.NewMotionSensor()
+	acc.AddS(acc.Motion.S)
+
+	acc.Light = service.NewLightSensor()
+	acc.AddS(acc.Light.S)
+
+	return &acc
+}
+
+type KS200mSwitchSvc struct {
+	*service.S
+
+	On *characteristic.On
+
+	ProgramMode       *characteristic.ProgramMode
+	SetDuration       *characteristic.SetDuration
+	RemainingDuration *characteristic.RemainingDuration
+}
+
+func NewKS200mSwitchSvc() *KS200mSwitchSvc {
+	svc := KS200mSwitchSvc{}
+	svc.S = service.New(service.TypeSwitch)
+
+	svc.On = characteristic.NewOn()
+	svc.AddC(svc.On.C)
+
+	svc.ProgramMode = characteristic.NewProgramMode()
+	svc.AddC(svc.ProgramMode.C)
+	svc.ProgramMode.SetValue(characteristic.ProgramModeNoProgramScheduled)
+
+	svc.SetDuration = characteristic.NewSetDuration()
+	svc.AddC(svc.SetDuration.C)
+
+	svc.RemainingDuration = characteristic.NewRemainingDuration()
+	svc.AddC(svc.RemainingDuration.C)
+	svc.RemainingDuration.SetValue(0)
+
+	svc.S.Primary = true
+
+	return &svc
+}
+
+func (h *KS200m) update(k kasa.KasaDevice, ip net.IP) {
+	h.genericUpdate(k, ip)
+
+	if h.Switch.On.Value() != (k.GetSysinfo.Sysinfo.RelayState > 0) {
+		log.Info.Printf("[%s] %s", k.GetSysinfo.Sysinfo.Alias, intToState(k.GetSysinfo.Sysinfo.RelayState))
+		h.Switch.On.SetValue(k.GetSysinfo.Sysinfo.RelayState > 0)
+	}
+
+	if h.Switch.ProgramMode.Value() != kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode) {
+		log.Info.Printf("updating HomeKit: [%s] ProgramMode %s", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.ActiveMode)
+		h.Switch.ProgramMode.SetValue(kpm2hpm(k.GetSysinfo.Sysinfo.ActiveMode))
+		if k.GetSysinfo.Sysinfo.ActiveMode == "none" {
+			d, _ := newKasaIP(h.ip)
+			_ = d.ClearCountdownRules()
+		}
+	}
+
+	if k.GetSysinfo.Sysinfo.ActiveMode == "count_down" {
+		d, _ := newKasaIP(h.ip)
+		rules, _ := d.GetCountdownRules()
+		for _, rule := range rules {
+			if rule.Enable > 0 {
+				log.Info.Printf("updating HomeKit: [%s] RemainingDuration %d", k.GetSysinfo.Sysinfo.Alias, rule.Remaining)
+				h.Switch.RemainingDuration.SetValue(int(rule.Remaining))
+			}
+		}
+	} else {
+		h.Switch.RemainingDuration.SetValue(0)
+	}
+
+	if err := getBrightnessUDP(h.ip); err != nil {
+		log.Info.Println(err.Error())
+	}
+
+}
+
+func (h *KS200m) incomingBrightnessData(e kasa.LightSensorBrightness) {
+	h.Light.CurrentAmbientLightLevel.SetValue(float64(e.Value))
+}

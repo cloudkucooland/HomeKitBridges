@@ -157,12 +157,12 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 
 	if h.Outlet.On.Value() && h.Outlet.Amp.Value() < 10 {
 		if h.Outlet.StatusFault.Value() == characteristic.StatusFaultNoFault {
-			log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Alias)
+			// log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Alias)
 			h.Outlet.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
 		}
 	} else {
 		if h.Outlet.StatusFault.Value() == characteristic.StatusFaultGeneralFault {
-			log.Info.Printf("[%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Alias)
+			// log.Info.Printf("[%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Alias)
 			h.Outlet.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 		}
 	}
