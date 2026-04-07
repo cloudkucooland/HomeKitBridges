@@ -134,5 +134,15 @@ func (h *KS200m) update(k kasa.KasaDevice, ip net.IP) {
 }
 
 func (h *KS200m) incomingBrightnessData(e kasa.LightSensorBrightness) {
-	h.Light.CurrentAmbientLightLevel.SetValue(float64(e.Value))
+	h.Light.CurrentAmbientLightLevel.SetValue(convertToLux(e.Value))
+}
+
+func convertToLux(raw uint) float64 {
+	lux := float64(raw) * 27.0 // guess from 2 small samples
+
+	// HomeKit minimum to avoid "0 Lux / No Response"
+	if lux < 0.1 {
+		return 0.1
+	}
+	return lux
 }

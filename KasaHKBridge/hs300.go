@@ -151,35 +151,54 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 		if err := getEmeterChildUDP(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID); err != nil {
 			log.Info.Println(err.Error())
 		}
-
-		if h.Outlets[i].On.Value() && h.Outlets[i].Amp.Value() < 10 {
-			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultNoFault {
-				// log.Info.Printf("ALERT: [%s] is ON but drawing no current!", k.GetSysinfo.Sysinfo.Children[i].Alias)
-				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
-			}
-		} else {
-			if h.Outlets[i].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
-				// log.Info.Printf("CLEAR: [%s] is ON and drawing current", k.GetSysinfo.Sysinfo.Children[i].Alias)
-				h.Outlets[i].StatusFault.SetValue(characteristic.StatusFaultNoFault)
-			}
-		}
-
-		v := h.Outlets[i].Volt.Value()
-		if v < 114 {
-			log.Info.Printf("ALERT: [%s][%s] low voltage: %dV", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Children[i].Alias, v)
-		}
-		if v > 127 {
-			log.Info.Printf("ALERT: [%s][%s] high voltage: %dV", k.GetSysinfo.Sysinfo.Alias, k.GetSysinfo.Sysinfo.Children[i].Alias, v)
-		}
 	}
 }
 
 func (h *HS300) incomingEmeterData(e kasa.EmeterRealtime) {
 	if int(e.Slot) >= len(h.Outlets) {
 		log.Info.Printf("slot out of bounds: %d", e.Slot)
+        return
 	}
 
-	h.Outlets[e.Slot].Volt.SetValue(int(e.VoltageMV / 1000))
+	v := int(e.VoltageMV / 1000)
+	h.Outlets[e.Slot].Volt.SetValue(v)
+	switch {
+	case v > 130:
+		log.Info.Printf("[%s][%s] dangerously high voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
+		h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+
+		full := fmt.Sprintf("%s%s", h.Sysinfo.DeviceID, h.Sysinfo.Children[e.Slot].ID)
+		k, _ := newKasaIP(h.ip)
+		if err := k.SetRelayStateChild(full, false); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+		h.Outlets[e.Slot].On.SetValue(false)
+		h.Outlets[e.Slot].OutletInUse.SetValue(false)
+	case v > 127:
+		log.Info.Printf("[%s][%s] high voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
+		if h.Outlets[e.Slot].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		}
+	case v < 114:
+		log.Info.Printf("[%s][%s] low voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
+		if h.Outlets[e.Slot].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		}
+	case v < 110:
+		log.Info.Printf("[%s][%s] dangerously low voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
+		h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+
+		full := fmt.Sprintf("%s%s", h.Sysinfo.DeviceID, h.Sysinfo.Children[e.Slot].ID)
+		k, _ := newKasaIP(h.ip)
+		if err := k.SetRelayStateChild(full, false); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+		h.Outlets[e.Slot].On.SetValue(false)
+		h.Outlets[e.Slot].OutletInUse.SetValue(false)
+	}
+
 	h.Outlets[e.Slot].Watt.SetValue(int(e.PowerMW / 1000))
 	h.Outlets[e.Slot].Amp.SetValue(int(e.CurrentMA))
 }
