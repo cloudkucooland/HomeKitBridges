@@ -14,7 +14,7 @@ import (
 
 type Konnected struct {
 	*accessory.A
-	pins           map[uint8]any
+	pins           map[uint8]PinHandler
 	SecuritySystem *KonnectedSvc
 	Buzzer         *KonnectedBuzzer
 	ip             string
@@ -26,7 +26,7 @@ type Konnected struct {
 
 func NewKonnected(details *system, d *Device, stateManager *PersistentState) *Konnected {
 	acc := Konnected{
-		pins: make(map[uint8]any),
+		pins: make(map[uint8]PinHandler),
 	}
 
 	info := accessory.Info{
@@ -269,6 +269,59 @@ func (k *Konnected) stopAllAlarmLogic() {
 		k.alarmCancel = nil
 	}
 	k.doBuzz(`"state": 0`)
+}
+
+func (s *KonnectedContactSensor) Handle(state uint8, k *Konnected) {
+    log.Info.Printf("Pin Update: %s (pin %d) is %d", s.Name.Value(), s.ContactSensorState.Value(), state)
+	s.ContactSensorState.SetValue(int(state))
+
+	if state == 0 {
+		k.doorCloseChirps()
+		return
+	}
+
+	sysState := k.SecuritySystem.SecuritySystemCurrentState.Value()
+
+	switch sysState {
+	case characteristic.SecuritySystemCurrentStateAwayArm:
+		log.Info.Printf("Entry on pin while Away")
+		k.triggerCountdown()
+
+	case characteristic.SecuritySystemCurrentStateNightArm:
+		log.Info.Printf("Entry on pin while Night")
+		k.instantAlarm()
+
+	case characteristic.SecuritySystemCurrentStateStayArm:
+		k.doorOpenChirps()
+	}
+}
+
+func (s *KonnectedMotionSensor) Handle(state uint8, k *Konnected) {
+    log.Info.Printf("Pin Update: %s (pin %d) is %d", s.Name.Value(), s.MotionDetected.Value(), state)
+	s.MotionDetected.SetValue(state == 1)
+
+	if state == 0 {
+		return
+	}
+
+	sysState := k.SecuritySystem.SecuritySystemCurrentState.Value()
+
+	switch sysState {
+	case characteristic.SecuritySystemCurrentStateAwayArm:
+		log.Info.Printf("Motion detected while Away")
+		k.triggerCountdown()
+
+	case characteristic.SecuritySystemCurrentStateNightArm:
+		log.Info.Printf("Motion detected while Night")
+		k.motionChirps()
+
+	case characteristic.SecuritySystemCurrentStateStayArm:
+		// optional
+	}
+}
+
+func (b *KonnectedBuzzer) Handle(state uint8, k *Konnected) {
+	log.Info.Printf("%s: %d", b.Switch.Name.Value(), state)
 }
 
 /* type KonnectedTrigger struct {

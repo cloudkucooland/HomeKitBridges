@@ -39,6 +39,7 @@ func main() {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Bool("debug") {
 				log.Debug.Enable()
+				konnectedkhbridge.StrictHTTP = true
 			}
 
 			dir := cmd.String("dir")

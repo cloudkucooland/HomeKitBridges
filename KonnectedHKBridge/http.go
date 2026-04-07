@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/brutella/hap/characteristic"
 	"github.com/brutella/hap/log"
 
 	// use go-chi since it is what hap uses, no need for multiple
 	"github.com/go-chi/chi/v5"
 )
+
+var StrictHTTP bool
 
 const jsonOK = `{ "status": "OK" }`
 
@@ -24,15 +25,13 @@ const jsonOK = `{ "status": "OK" }`
 func handler(w http.ResponseWriter, r *http.Request) {
 	device := chi.URLParam(r, "device")
 	if device == "" {
-		log.Info.Printf("device unset: %+v", r)
-		fmt.Fprint(w, jsonOK)
+		respondError(w, http.StatusBadRequest, "missing device", StrictHTTP)
 		return
 	}
 
 	k := chooseKonnected(device)
 	if k == nil {
-		log.Info.Printf("Unknown device: %s %+v", device, r)
-		fmt.Fprint(w, jsonOK)
+		respondError(w, http.StatusNotFound, "unknown device", StrictHTTP)
 		return
 	}
 
@@ -40,15 +39,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if k.password != "" {
 		sentToken := r.Header.Get("Authorization")
 		if sentToken == "" {
-			log.Info.Println("Authorization token not sent")
-			// http.Error(w, `{ "status": "bad" }`, http.StatusForbidden)
-			fmt.Fprint(w, jsonOK)
+			respondError(w, http.StatusUnauthorized, "Authorization token not sent", StrictHTTP)
 			return
 		}
 		if len(sentToken) < 7 || sentToken[:7] != "Bearer " || sentToken[7:] != k.password {
-			log.Info.Println("Authorization token invalid")
-			// http.Error(w, `{ "status": "forbidden" }`, http.StatusForbidden)
-			fmt.Fprint(w, jsonOK)
+			respondError(w, http.StatusForbidden, "Authorization token invalid", StrictHTTP)
 			return
 		}
 	}
@@ -67,13 +62,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				log.Info.Printf("rediscovery: (%s) got: (%s)", device, ip)
 				k.ip = ip
 				if err := k.getStatusAndUpdate(); err != nil {
-					log.Info.Println(err.Error())
-					fmt.Fprint(w, jsonOK)
+					respondError(w, http.StatusBadRequest, err.Error(), StrictHTTP)
 					return
 				}
 			} else {
-				log.Info.Println("rediscovery failed: still in bootstrap mode, try rebooting the hardware")
-				fmt.Fprint(w, jsonOK)
+				respondError(w, http.StatusBadRequest, "rediscovery failed: still in bootstrap mode. Reboot konnected hardware", StrictHTTP)
 				return
 			}
 		}
@@ -81,82 +74,30 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	jBlob, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Info.Printf("konnected: unable to read update: %s", err.Error())
-		// http.Error(w, `{ "status": "bad" }`, http.StatusInternalServerError)
-		fmt.Fprint(w, jsonOK)
+		respondError(w, http.StatusInternalServerError, "unable to read update", StrictHTTP)
 		return
 	}
 	// if konnected provisioned with a trailing / on the url..
 	if len(jBlob) == 0 {
 		log.Info.Printf("konnected: sent empty message")
 		// acknowledge the notice so it doesn't retransmit
-		fmt.Fprint(w, jsonOK)
+		respondOK(w)
 		// trigger a manual pull
 		go k.getStatusAndUpdate()
 		return
 	}
 
 	var p sensor
-	// log.Info.Printf("sent from %s %s: %s", device, r.RemoteAddr, string(jBlob))
 	err = json.Unmarshal(jBlob, &p)
 	if err != nil {
-		log.Info.Printf("konnected: unable to parse update: %s", string(jBlob))
-		// http.Error(w, `{ "status": "bad" }`, http.StatusNotAcceptable)
-		fmt.Fprint(w, jsonOK)
+		log.Info.Printf("Received: %s", string(jBlob))
+		respondError(w, http.StatusNotAcceptable, "unable to parse update", StrictHTTP)
 		return
 	}
 
 	// tell homekit about the change and run any actions
-	// move this logic into the device e.g. k.Update(p.Pin, p.State)
-	if svc, ok := k.pins[p.Pin]; ok {
-		switch svc := svc.(type) {
-		case *KonnectedMotionSensor:
-			svc.MotionDetected.SetValue(p.State == 1)
-			if p.State == 0 {
-				return
-			} // Only trigger on "Motion Detected"
-
-			state := k.SecuritySystem.SecuritySystemCurrentState.Value()
-			switch state {
-			case characteristic.SecuritySystemCurrentStateAwayArm:
-				log.Info.Printf("Motion on pin %d while Away", p.Pin)
-				k.triggerCountdown()
-				// k.instantAlarm()
-			case characteristic.SecuritySystemCurrentStateNightArm:
-				log.Info.Printf("Motion on pin %d while Night", p.Pin)
-				// k.instantAlarm()
-				k.motionchirps()
-			case characteristic.SecuritySystemCurrentStateStayArm:
-				// k.motionchirps()
-			}
-
-		case *KonnectedContactSensor:
-			svc.ContactSensorState.SetValue(int(p.State))
-			if p.State == 0 {
-				k.doorchirps()
-				return
-			} // Only trigger on "Open" (1)
-
-			state := k.SecuritySystem.SecuritySystemCurrentState.Value()
-			switch state {
-			case characteristic.SecuritySystemCurrentStateAwayArm:
-				log.Info.Printf("Entry on pin %d", p.Pin)
-				k.triggerCountdown()
-			case characteristic.SecuritySystemCurrentStateNightArm:
-				log.Info.Printf("Entry on pin %d", p.Pin)
-				k.instantAlarm()
-			case characteristic.SecuritySystemCurrentStateStayArm:
-				k.doorchirps()
-			}
-		case *KonnectedBuzzer: // not used
-			log.Info.Printf("%s: %d", svc.Switch.Name.Value(), p.State)
-			// svc.Beeper.SetValue(int(p.State))
-		default:
-			log.Info.Printf("bad type in handler: %+v", svc)
-			k.motionchirps()
-		}
-	}
-	fmt.Fprint(w, jsonOK)
+	k.HandleUpdate(p)
+	respondOK(w)
 }
 
 func HTTPServer(ctx context.Context, addr string) {
@@ -196,5 +137,21 @@ func chooseKonnected(mac string) *Konnected {
 
 	log.Info.Printf("unknown konnected sent request...")
 	// not a known mac, return a bootstrap device
-	return nil // crash hard now
+	return nil
+}
+
+func respondOK(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, jsonOK)
+}
+
+func respondError(w http.ResponseWriter, code int, msg string, strict bool) {
+	if strict {
+		http.Error(w, msg, code)
+		return
+	}
+
+	log.Info.Printf("handler error (suppressed %d): %s", code, msg)
+	respondOK(w)
 }

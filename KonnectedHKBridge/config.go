@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 
 	"github.com/brutella/hap/log"
@@ -64,8 +65,51 @@ func LoadConfig(filename string) (*Config, error) {
 	return &conf, nil
 }
 
-// XXX todo
 func getListenAddress() string {
 	log.Info.Println("discovering local listen address")
-	return "192.168.1.2:8999"
+
+	// Try UDP method
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err == nil {
+		defer conn.Close()
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		ip := localAddr.IP.String()
+		addr := fmt.Sprintf("%s:8999", ip)
+		log.Info.Printf("detected via UDP: %s", addr)
+		return addr
+	}
+
+	// Fallback to interface scan
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Info.Printf("failed to list interfaces: %v", err)
+		return "0.0.0.0:8999"
+	}
+
+	for _, iface := range ifaces {
+		// skip down or loopback
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok || ipNet.IP.IsLoopback() {
+				continue
+			}
+
+			ip := ipNet.IP.To4()
+			if ip == nil {
+				continue
+			}
+
+			addr := fmt.Sprintf("%s:8999", ip.String())
+			log.Info.Printf("detected via interface: %s (%s)", addr, iface.Name)
+			return addr
+		}
+	}
+
+	log.Info.Println("no suitable IP found, falling back to 0.0.0.0")
+	return "0.0.0.0:8999"
 }

@@ -20,6 +20,10 @@ var ks map[string]*Konnected
 
 // {"mac":"f4:cf:a2:6a:c2:6e","gw":"192.168.12.1","hwVersion":"3.0.0","settings":[],"rssi":-70,"nm":"255.255.255.0","ip":"192.168.12.252","actuators":[],"port":14996,"uptime":1248,"heap":34056,"swVersion":"3.0.1","dht_sensors":[],"ds18b20_sensors": [],"sensors":[]}
 
+type PinHandler interface {
+	Handle(state uint8, k *Konnected)
+}
+
 type system struct {
 	Settings  settings   `json:"settings"`
 	Mac       string     `json:"mac"`
@@ -218,19 +222,8 @@ func (k *Konnected) getStatusAndUpdate() error {
 		return err
 	}
 
-	for _, v := range *status {
-		if p, ok := k.pins[v.Pin]; ok {
-			switch p := p.(type) {
-			case *KonnectedMotionSensor:
-				p.MotionDetected.SetValue(v.State == 1)
-			case *KonnectedContactSensor:
-				if p.ContactSensorState.Value() != int(v.State) {
-					p.ContactSensorState.SetValue(int(v.State))
-				}
-			default:
-				log.Info.Printf("konnected device not processed: pin %d", v.Pin)
-			}
-		}
+    for _, v := range *status {
+		k.HandleUpdate(v)
 	}
 	return nil
 }
@@ -244,7 +237,7 @@ func (k *Konnected) beep() {
 	}
 }
 
-func (k *Konnected) doorchirps() {
+func (k *Konnected) doorOpenChirps() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
 		k.doBuzz(`"state":1, "momentary":10, "times":5, "pause":30`)
@@ -253,7 +246,16 @@ func (k *Konnected) doorchirps() {
 	}
 }
 
-func (k *Konnected) motionchirps() {
+func (k *Konnected) doorCloseChirps() {
+	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
+		characteristic.SecuritySystemCurrentStateAlarmTriggered {
+		k.doBuzz(`"state":1, "momentary":15, "times":2, "pause":45`)
+	} else {
+		log.Info.Println("not doing door chirps since in triggered state")
+	}
+}
+
+func (k *Konnected) motionChirps() {
 	if k.SecuritySystem.SecuritySystemCurrentState.Value() !=
 		characteristic.SecuritySystemCurrentStateAlarmTriggered {
 		k.doBuzz(`"state":1, "momentary":5, "times":3, "pause":50`)
@@ -428,4 +430,13 @@ func (k *Konnected) provision(s *system, c *Config, d *Device) error {
 	}
 	log.Info.Printf("%s", result) */
 	return nil
+}
+
+func (k *Konnected) HandleUpdate(p sensor) {
+	if handler, ok := k.pins[p.Pin]; ok {
+		handler.Handle(p.State, k)
+		return
+	}
+
+	log.Info.Printf("unknown pin %d", p.Pin)
 }
