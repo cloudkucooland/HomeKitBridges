@@ -2,10 +2,8 @@ github.com/brutella/dnssd v1.2.14 h1:qLpTnRTm5peo2jA30hqMIbCuWn8x3sFg3e9o9ODOobw
 github.com/brutella/dnssd v1.2.14/go.mod h1:tG4GE8orv6+irE5rdsNgb6MJSxm6cyMUKdC5jmD22gk=
 github.com/brutella/hap v0.0.35 h1:9J6jWnrlnZGJIdskYdkRt8EGfEoIe2sMqc6qBNQTnAM=
 github.com/brutella/hap v0.0.35/go.mod h1:vWJ+URAmB9aEXZ6bWeqO9iHwz+pcb89eR1pNYK2ZAUM=
-github.com/cloudkucooland/go-kasa v0.0.0-20260405151324-d5d879b1bac6 h1:36Q5re3EPMQB3oYm6preEiVPStBWG9rAZc06+CJOYMc=
-github.com/cloudkucooland/go-kasa v0.0.0-20260405151324-d5d879b1bac6/go.mod h1:PU0h7t5VML2aKgPmIbwoaSHzc1SYwkznPxu8Ctsr5R8=
-github.com/cloudkucooland/go-kasa v0.0.0-20260406034413-df5f53dbe664 h1:VuB3qkEQkPCJRNThXeiuwFNxlGnKItHoJE4FApVb4Cs=
-github.com/cloudkucooland/go-kasa v0.0.0-20260406034413-df5f53dbe664/go.mod h1:PU0h7t5VML2aKgPmIbwoaSHzc1SYwkznPxu8Ctsr5R8=
+github.com/cloudkucooland/go-kasa v0.0.0-20260406205801-faf2fdb4584a h1:uo34gVmg51l9B4xZJO5Axf5DlcqVj5e7rcL853uRX64=
+github.com/cloudkucooland/go-kasa v0.0.0-20260406205801-faf2fdb4584a/go.mod h1:PU0h7t5VML2aKgPmIbwoaSHzc1SYwkznPxu8Ctsr5R8=
 github.com/cpuguy83/go-md2man/v2 v2.0.7 h1:zbFlGlXEAKlwXpmvle3d8Oe3YnkKIK4xSRTd3sHPnBo=
 github.com/cpuguy83/go-md2man/v2 v2.0.7/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

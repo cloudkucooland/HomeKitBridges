@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/brutella/hap v0.0.35
-	github.com/cloudkucooland/go-kasa v0.0.0-20260406034413-df5f53dbe664
+	github.com/cloudkucooland/go-kasa v0.0.0-20260406205801-faf2fdb4584a
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/vishvananda/netlink v1.3.1
 )
