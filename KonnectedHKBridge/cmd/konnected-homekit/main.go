@@ -2,103 +2,106 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"sync"
-	"syscall"
 
 	"github.com/cloudkucooland/konnectedhkbridge"
 
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/log"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-// TODO dump cli and use the native flag type
 func main() {
-	var dir, file string
-	var debug bool
-
-	app := cli.App{
-		Name:  "onkyo homekit bridge",
-		Usage: "server",
+	cmd := &cli.Command{
+		Name:  "konnected-homekit",
+		Usage: "HomeKit Bridge for Konnected.io devices",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "dir",
-				Value:       "/var/db/HomeKitBridges/Konnected",
-				Usage:       "configuration directory",
-				Destination: &dir,
+				Name:  "dir",
+				Value: "/var/db/HomeKitBridges/Konnected",
+				Usage: "configuration directory",
 			},
 			&cli.StringFlag{
-				Name:        "config",
-				Value:       "khkb.json",
-				Usage:       "configuration file",
-				Destination: &file,
+				Name:  "config",
+				Value: "khkb.json",
+				Usage: "configuration file",
 			},
 			&cli.BoolFlag{
-				Name:        "debug",
-				Value:       false,
-				Usage:       "enable debug",
-				Destination: &debug,
+				Name:  "debug",
+				Value: false,
+				Usage: "enable debug logging",
 			},
 		},
-		Action: func(c *cli.Context) error {
-			if debug {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Bool("debug") {
 				log.Debug.Enable()
 			}
 
+			dir := cmd.String("dir")
+			file := cmd.String("config")
+
 			fulldir, err := filepath.Abs(dir)
 			if err != nil {
-				log.Info.Panic("unable to get config directory", dir)
+				return err
 			}
+
 			cfd := filepath.Join(fulldir, file)
 			conf, err := konnectedkhbridge.LoadConfig(cfd)
 			if err != nil {
-				log.Info.Panic(err.Error())
+				return fmt.Errorf("could not initialize config: %w", err)
 			}
 
-			ctx, cancel := context.WithCancel(context.Background())
 			var wg sync.WaitGroup
 
-			// respond to HTTP requests from the konnected devices (even before they are configured, so they can be bootstrapped)
-			wg.Go(func() { konnectedkhbridge.HTTPServer(ctx, conf.ListenAddr) })
+			// Start HTTP service for Konnected hardware callbacks
+			wg.Go(func() {
+				konnectedkhbridge.HTTPServer(ctx, conf.ListenAddr)
+			})
 
-			// discover & provision the devices
-			devices, err := konnectedkhbridge.Startup(ctx, conf)
-			if err != nil {
-				log.Info.Panic(err)
+			statePath := filepath.Join(fulldir, "state.json")
+			stateManager := konnectedkhbridge.NewPersistentState(statePath)
+			if err := stateManager.Load(); err != nil {
+				log.Info.Printf("Warning: could not load state: %v", err)
 			}
 
-			// push the config into HomeKit server
+			// Initialize and provision devices
+			devices, err := konnectedkhbridge.Startup(ctx, conf, stateManager)
+			if err != nil {
+				return err
+			}
+
+			// Setup HomeKit Server
 			s, err := hap.NewServer(hap.NewFsStore(fulldir), devices[0], devices[1:]...)
 			if err != nil {
-				log.Info.Panic(err)
+				return err
 			}
+
 			if conf.Pin != "" {
 				s.Pin = conf.Pin
 			}
 
-			// serve HomeKit
-			wg.Go(func() { s.ListenAndServe(ctx) })
+			// Start HomeKit server
+			wg.Go(func() {
+				if err := s.ListenAndServe(ctx); err != nil {
+					log.Info.Println("HAP server stopped:", err)
+				}
+			})
 
-			// wait for signal to shut down
-			sigch := make(chan os.Signal, 3)
-			signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
+			log.Info.Println("Bridge is running. Press Ctrl+C to terminate.")
 
-			// wait until shutdown signal sent
-			sig := <-sigch
+			<-ctx.Done()
 
-			log.Info.Printf("shutdown requested by signal: %s", sig)
-			cancel() // closes homekit and konnected services
-
+			log.Info.Println("Shutting down services...")
 			wg.Wait()
 			return nil
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Info.Panic(err)
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		log.Info.Fatal(err)
 	}
 }

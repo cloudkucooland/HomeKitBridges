@@ -112,41 +112,42 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		switch svc := svc.(type) {
 		case *KonnectedMotionSensor:
 			svc.MotionDetected.SetValue(p.State == 1)
-			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
-			case characteristic.SecuritySystemCurrentStateDisarmed:
-				// log.Info.Println("motion detected while disarmed")
+			if p.State == 0 {
+				return
+			} // Only trigger on "Motion Detected"
+
+			state := k.SecuritySystem.SecuritySystemCurrentState.Value()
+			switch state {
 			case characteristic.SecuritySystemCurrentStateAwayArm:
-				log.Info.Println("motion detected while armed for away")
-				k.countdownAlarm()
-			case characteristic.SecuritySystemCurrentStateStayArm:
-				// log.Info.Printf("motion detected while in stay; pin: %d", p.Pin)
+				log.Info.Printf("Motion on pin %d while Away", p.Pin)
+				k.triggerCountdown()
+				// k.instantAlarm()
 			case characteristic.SecuritySystemCurrentStateNightArm:
-				log.Info.Println("motion detected while armed for night")
+				log.Info.Printf("Motion on pin %d while Night", p.Pin)
+				// k.instantAlarm()
 				k.motionchirps()
-			default:
-				log.Info.Println("motion detected while in unknown state")
-				k.motionchirps()
+			case characteristic.SecuritySystemCurrentStateStayArm:
+				// k.motionchirps()
 			}
+
 		case *KonnectedContactSensor:
 			svc.ContactSensorState.SetValue(int(p.State))
-			switch k.SecuritySystem.SecuritySystemCurrentState.Value() {
-			case characteristic.SecuritySystemCurrentStateDisarmed:
-				// nothing
+			if p.State == 0 {
+				k.doorchirps()
+				return
+			} // Only trigger on "Open" (1)
+
+			state := k.SecuritySystem.SecuritySystemCurrentState.Value()
+			switch state {
 			case characteristic.SecuritySystemCurrentStateAwayArm:
-				k.countdownAlarm()
+				log.Info.Printf("Entry on pin %d", p.Pin)
+				k.triggerCountdown()
 			case characteristic.SecuritySystemCurrentStateNightArm:
+				log.Info.Printf("Entry on pin %d", p.Pin)
 				k.instantAlarm()
 			case characteristic.SecuritySystemCurrentStateStayArm:
-				// nothing for now
-				k.doorchirps()
-			default:
 				k.doorchirps()
 			}
-			state := "opened"
-			if p.State == 0 {
-				state = "closed"
-			}
-			log.Info.Printf("%s: %s", svc.Name.Value(), state)
 		case *KonnectedBuzzer: // not used
 			log.Info.Printf("%s: %d", svc.Switch.Name.Value(), p.State)
 			// svc.Beeper.SetValue(int(p.State))

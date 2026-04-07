@@ -1,7 +1,9 @@
 package konnectedkhbridge
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/brutella/hap/accessory"
@@ -15,13 +17,17 @@ type Konnected struct {
 	pins           map[uint8]any
 	SecuritySystem *KonnectedSvc
 	Buzzer         *KonnectedBuzzer
-	// Trigger        *KonnectedTrigger
-	ip       string
-	password string
+	ip             string
+	password       string
+
+	alarmCancel context.CancelFunc
+	mu          sync.Mutex
 }
 
-func NewKonnected(details *system, d *Device) *Konnected {
-	acc := Konnected{}
+func NewKonnected(details *system, d *Device, stateManager *PersistentState) *Konnected {
+	acc := Konnected{
+		pins: make(map[uint8]any),
+	}
 
 	info := accessory.Info{
 		Name:         "konnected", // Name,
@@ -37,15 +43,42 @@ func NewKonnected(details *system, d *Device) *Konnected {
 
 	acc.SecuritySystem = NewKonnectedSvc()
 	acc.AddS(acc.SecuritySystem.S)
-	acc.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateStayArm) // default to Stay
-	acc.SecuritySystem.SecuritySystemTargetState.SetValue(characteristic.SecuritySystemCurrentStateStayArm)  // default to Stay
+	acc.SecuritySystem.SecuritySystemCurrentState.SetValue(stateManager.SecurityMode)
+	acc.SecuritySystem.SecuritySystemTargetState.SetValue(stateManager.SecurityMode)
+
+	acc.SecuritySystem.SecuritySystemTargetState.OnValueRemoteUpdate(func(newval int) {
+		current := acc.SecuritySystem.SecuritySystemCurrentState.Value()
+
+		if newval == characteristic.SecuritySystemTargetStateDisarm {
+			log.Info.Println("System Disarmed: Stopping all alarm logic")
+			acc.stopAllAlarmLogic()
+			acc.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateDisarmed)
+			acc.beep()
+			if err := stateManager.UpdateAndSave(newval); err != nil {
+				log.Info.Printf("Failed to persist state: %v", err)
+			}
+			return
+		}
+
+		// Prevent state changes if already triggered (unless disarming)
+		if current == characteristic.SecuritySystemCurrentStateAlarmTriggered {
+			log.Info.Println("Action ignored: System is currently triggered. Disarm first.")
+			return
+		}
+
+		acc.SecuritySystem.SecuritySystemCurrentState.SetValue(newval)
+		acc.beep()
+
+		if err := stateManager.UpdateAndSave(newval); err != nil {
+			log.Info.Printf("Failed to persist state: %v", err)
+		}
+	})
 
 	alarmType := characteristic.NewSecuritySystemAlarmType()
 	alarmType.SetValue(1)
 	acc.SecuritySystem.AddC(alarmType.C)
 
 	// convert zones from config to pins
-	acc.pins = make(map[uint8]any)
 	for _, v := range d.Zones {
 		switch v.Type {
 		case "motion":
@@ -96,77 +129,6 @@ func NewKonnected(details *system, d *Device) *Konnected {
 		}
 	}
 
-	// add handler for setting the system state
-	acc.SecuritySystem.SecuritySystemTargetState.OnValueRemoteUpdate(func(newval int) {
-		triggered := true
-		if acc.SecuritySystem.SecuritySystemCurrentState.Value() !=
-			characteristic.SecuritySystemCurrentStateAlarmTriggered {
-			triggered = false
-		}
-		switch newval {
-		case characteristic.SecuritySystemCurrentStateStayArm:
-			log.Info.Println("system state changed to 'stay'")
-			if triggered {
-				log.Info.Println("not changing while triggered")
-				return
-			}
-		case characteristic.SecuritySystemCurrentStateAwayArm:
-			log.Info.Println("system state changed to 'away'")
-			if triggered {
-				log.Info.Println("not changing while triggered")
-				return
-			}
-		case characteristic.SecuritySystemCurrentStateNightArm:
-			log.Info.Println("system state changed to 'night'")
-			if triggered {
-				log.Info.Println("not changing while triggered")
-				return
-			}
-		case characteristic.SecuritySystemCurrentStateDisarmed:
-			log.Info.Println("system state changed to 'disarmed'")
-			if triggered {
-				log.Info.Println("stopping alarm")
-				acc.cancelAlarm()
-			}
-		default:
-			log.Info.Printf("unknown security system state: %d", newval)
-			return
-		}
-		acc.SecuritySystem.SecuritySystemCurrentState.SetValue(newval)
-		// let a triggered alarm continue to ring until cancelAlarm takes care of it
-		if !triggered {
-			acc.beep()
-		}
-	})
-
-	/* acc.Trigger = NewKonnectedTrigger()
-	acc.Trigger.Trigger.Trip.OnValueRemoteUpdate(func(targetState bool) {
-		if targetState {
-			log.Info.Println("externally triggered alarm")
-			switch acc.SecuritySystem.SecuritySystemCurrentState.Value() {
-			case characteristic.SecuritySystemCurrentStateAwayArm:
-				acc.countdownAlarm()
-			case characteristic.SecuritySystemCurrentStateNightArm,
-				characteristic.SecuritySystemCurrentStateStayArm:
-				acc.instantAlarm()
-			default:
-				acc.instantAlarm()
-			}
-
-		} else {
-			triggered := true
-			if acc.SecuritySystem.SecuritySystemCurrentState.Value() !=
-				characteristic.SecuritySystemCurrentStateAlarmTriggered {
-				triggered = false
-			}
-			if triggered {
-				log.Info.Println("clearing external alarm")
-				acc.cancelAlarm()
-			} else {
-				log.Info.Println("not triggered, nothing to clear")
-			}
-		}
-	}) */
 	return &acc
 }
 
@@ -271,6 +233,42 @@ func NewKonnectedBuzzerSvc(name string) *KonnectedBuzzerSvc {
 	s.AddC(s.Name.C)
 
 	return &s
+}
+
+func (k *Konnected) triggerCountdown() {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	// If already counting down or triggered, don't start another goroutine
+	if k.alarmCancel != nil {
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	k.alarmCancel = cancel
+
+	go func() {
+		log.Info.Println("Alarm countdown started...")
+		k.doBuzz(`"state":1, "momentary":50, "pause":450`)
+
+		select {
+		case <-time.After(1 * time.Minute):
+			k.instantAlarm()
+		case <-ctx.Done():
+			log.Info.Println("Countdown cancelled by user disarm.")
+		}
+	}()
+}
+
+func (k *Konnected) stopAllAlarmLogic() {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	if k.alarmCancel != nil {
+		k.alarmCancel()
+		k.alarmCancel = nil
+	}
+	k.doBuzz(`"state": 0`)
 }
 
 /* type KonnectedTrigger struct {

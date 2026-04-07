@@ -2,6 +2,7 @@ package konnectedkhbridge
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 
@@ -30,10 +31,7 @@ type Zone struct {
 }
 
 func LoadConfig(filename string) (*Config, error) {
-	conf := Config{
-		Pin:        "80899303",
-		ListenAddr: "",
-	}
+	var conf Config
 
 	confFile, err := os.Open(filename)
 	if err != nil {
@@ -50,8 +48,11 @@ func LoadConfig(filename string) (*Config, error) {
 
 	err = json.Unmarshal(raw, &conf)
 	if err != nil {
-		log.Info.Printf("%s\nunable to parse config %s: using defaults\nraw: %s\n%+v", err.Error(), filename, string(raw), conf)
-		return &conf, err
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	if err := conf.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	// if not statically configured, auto-discover
@@ -60,7 +61,6 @@ func LoadConfig(filename string) (*Config, error) {
 	}
 
 	log.Info.Printf("using config: %+v", conf)
-
 	return &conf, nil
 }
 

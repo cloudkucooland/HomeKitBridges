@@ -83,7 +83,7 @@ type command struct {
 
 // Startup sets the globals, discovers & loads settings from the from the Konnected devices
 // how to rediscover when IP addresses change, without needing to disrupt the HAP service?
-func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
+func Startup(ctx context.Context, config *Config, stateManager *PersistentState) ([]*accessory.A, error) {
 	disarmed = make(chan bool)
 
 	client = &http.Client{
@@ -131,7 +131,7 @@ func Startup(ctx context.Context, config *Config) ([]*accessory.A, error) {
 			log.Info.Printf("unable to discover (%s); using bootstrap mode", d.Mac)
 		}
 
-		k := NewKonnected(details, &d)
+		k := NewKonnected(details, &d, stateManager)
 		// before or after NewKonnected?
 		k.provision(details, config, &d)
 		ks[d.Mac] = k
@@ -263,20 +263,32 @@ func (k *Konnected) motionchirps() {
 }
 
 func (k *Konnected) instantAlarm() {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	// Update HomeKit State
 	k.SecuritySystem.SecuritySystemCurrentState.SetValue(characteristic.SecuritySystemCurrentStateAlarmTriggered)
-	log.Info.Println("sending alarm")
+
+	log.Info.Println("alarm triggered")
 	k.doBuzz(`"state":1`)
 
-	// notify noonlight
+	// If there's an existing countdown context, cancel it
+	if k.alarmCancel != nil {
+		k.alarmCancel()
+	}
+
+	// Create a new context for the "Siren Timeout"
+	ctx, cancel := context.WithCancel(context.Background())
+	k.alarmCancel = cancel
 
 	go func() {
 		select {
-		case <-disarmed:
-			// cancelAlarm called
-			// send all-clear to noonlight
-			k.beep()
 		case <-time.After(5 * time.Minute):
-			k.beep() // no point of ringing for longer
+			log.Info.Println("Siren timeout reached (5 mins). Silencing.")
+			k.doBuzz(`"state":0`)
+		case <-ctx.Done():
+			// stopAllAlarmLogic was called (User disarmed)
+			k.doBuzz(`"state":0`)
 		}
 	}()
 }
