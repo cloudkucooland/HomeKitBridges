@@ -16,7 +16,7 @@ import (
 type HS300 struct {
 	*generic
 
-	Outlets []*hs300outletSvc
+	OutletMap map[string]*hs300outletSvc
 }
 
 func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
@@ -27,13 +27,13 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 	acc.A = accessory.New(info, accessory.TypeOutlet)
 	acc.setID()
 
-	outlets := int(acc.Sysinfo.NumChildren)
-	acc.Outlets = make([]*hs300outletSvc, outlets, outlets+1)
+	acc.OutletMap = make(map[string]*hs300outletSvc)
 
-	for i := 0; i < outlets; i++ {
+	for i := uint(0); i < acc.Sysinfo.NumChildren; i++ {
 		idx := i // local scope
 
 		o := newHS300OutletSvc()
+		o.slot = idx
 		o.On.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.OutletInUse.SetValue(acc.Sysinfo.Children[idx].RelayState > 0)
 		o.Name.SetValue(acc.Sysinfo.Children[idx].Alias)
@@ -68,7 +68,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 		})
 
 		acc.AddS(o.S)
-		acc.Outlets[idx] = o
+		acc.OutletMap[acc.Sysinfo.Children[idx].ID] = o
 	}
 
 	return &acc
@@ -88,6 +88,8 @@ type hs300outletSvc struct {
 	Amp  *amp
 
 	StatusFault *characteristic.StatusFault
+
+	slot uint
 }
 
 func newHS300OutletSvc() *hs300outletSvc {
@@ -135,37 +137,67 @@ func newHS300OutletSvc() *hs300outletSvc {
 func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 	h.genericUpdate(k, ip)
 
-	for i := 0; i < len(h.Outlets); i++ {
-		if h.Outlets[i].On.Value() != (k.GetSysinfo.Sysinfo.Children[i].RelayState > 0) {
-			log.Info.Printf("[%s][%d] %s", k.GetSysinfo.Sysinfo.Alias, i, intToState(k.GetSysinfo.Sysinfo.Children[i].RelayState))
-			h.Outlets[i].On.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
-			h.Outlets[i].OutletInUse.SetValue(k.GetSysinfo.Sysinfo.Children[i].RelayState > 0)
+	for id, outlet := range h.OutletMap {
+		data, err := getChildFromID(k, id)
+		if err != nil {
+			log.Info.Println(err.Error())
+			continue
 		}
 
-		if h.Outlets[i].Name.Value() != k.GetSysinfo.Sysinfo.Children[i].Alias {
-			log.Info.Printf("updating HomeKit: [%s][%d] name %s", k.GetSysinfo.Sysinfo.Alias, i, k.GetSysinfo.Sysinfo.Children[i].Alias)
-			h.Outlets[i].Name.SetValue(k.GetSysinfo.Sysinfo.Children[i].Alias)
+		if outlet.On.Value() != (data.RelayState > 0) {
+			log.Info.Printf("[%s][%s] %s", k.GetSysinfo.Sysinfo.Alias, id, intToState(data.RelayState))
+			outlet.On.SetValue(data.RelayState > 0)
+			outlet.OutletInUse.SetValue(data.RelayState > 0)
+		}
+
+		if outlet.Name.Value() != data.Alias {
+			log.Info.Printf("updating HomeKit: [%s][%s] name %s", k.GetSysinfo.Sysinfo.Alias, id, data.Alias)
+			outlet.Name.SetValue(data.Alias)
 		}
 
 		// request emeter data for each outlet
-		if err := getEmeterChildUDP(h.ip, h.Sysinfo.DeviceID, h.Sysinfo.Children[i].ID); err != nil {
+		if err := getEmeterChildUDP(h.ip, h.Sysinfo.DeviceID, id); err != nil {
 			log.Info.Println(err.Error())
 		}
 	}
 }
 
+func getChildFromID(k kasa.KasaDevice, id string) (*kasa.Child, error) {
+	for _, j := range k.GetSysinfo.Sysinfo.Children {
+		if j.ID == id {
+			return &j, nil
+		}
+	}
+	return nil, fmt.Errorf("child not found")
+}
+
+func (h *HS300) getOutletFromSlot(slot uint) (*hs300outletSvc, error) {
+	for _, j := range h.OutletMap {
+		if j.slot == slot {
+			return j, nil
+		}
+	}
+	return nil, fmt.Errorf("child not found")
+}
+
 func (h *HS300) incomingEmeterData(e kasa.EmeterRealtime) {
-	if int(e.Slot) >= len(h.Outlets) {
+	if int(e.Slot) >= len(h.OutletMap) {
 		log.Info.Printf("slot out of bounds: %d", e.Slot)
-        return
+		return
+	}
+
+	child, err := h.getOutletFromSlot(e.Slot)
+	if err != nil {
+		log.Info.Println(err.Error())
+		return
 	}
 
 	v := int(e.VoltageMV / 1000)
-	h.Outlets[e.Slot].Volt.SetValue(v)
+	child.Volt.SetValue(v)
 	switch {
 	case v > 130:
-		log.Info.Printf("[%s][%s] dangerously high voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
-		h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+		log.Info.Printf("[%s][%s] dangerously high voltage: %dV", h.Sysinfo.Alias, child.Name.Value(), v)
+		child.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
 
 		full := fmt.Sprintf("%s%s", h.Sysinfo.DeviceID, h.Sysinfo.Children[e.Slot].ID)
 		k, _ := newKasaIP(h.ip)
@@ -173,21 +205,21 @@ func (h *HS300) incomingEmeterData(e kasa.EmeterRealtime) {
 			log.Info.Println(err.Error())
 			return
 		}
-		h.Outlets[e.Slot].On.SetValue(false)
-		h.Outlets[e.Slot].OutletInUse.SetValue(false)
+		child.On.SetValue(false)
+		child.OutletInUse.SetValue(false)
 	case v > 127:
-		log.Info.Printf("[%s][%s] high voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
-		if h.Outlets[e.Slot].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
-			h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		log.Info.Printf("[%s][%s] high voltage: %dV", h.Sysinfo.Alias, child.Name.Value(), v)
+		if child.StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			child.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 		}
 	case v < 114:
-		log.Info.Printf("[%s][%s] low voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
-		if h.Outlets[e.Slot].StatusFault.Value() == characteristic.StatusFaultGeneralFault {
-			h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		log.Info.Printf("[%s][%s] low voltage: %dV", h.Sysinfo.Alias, child.Name.Value(), v)
+		if child.StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			child.StatusFault.SetValue(characteristic.StatusFaultNoFault)
 		}
 	case v < 110:
-		log.Info.Printf("[%s][%s] dangerously low voltage: %dV", h.Sysinfo.Alias, h.Sysinfo.Children[e.Slot].Alias, v)
-		h.Outlets[e.Slot].StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+		log.Info.Printf("[%s][%s] dangerously low voltage: %dV", h.Sysinfo.Alias, child.Name.Value(), v)
+		child.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
 
 		full := fmt.Sprintf("%s%s", h.Sysinfo.DeviceID, h.Sysinfo.Children[e.Slot].ID)
 		k, _ := newKasaIP(h.ip)
@@ -195,10 +227,10 @@ func (h *HS300) incomingEmeterData(e kasa.EmeterRealtime) {
 			log.Info.Println(err.Error())
 			return
 		}
-		h.Outlets[e.Slot].On.SetValue(false)
-		h.Outlets[e.Slot].OutletInUse.SetValue(false)
+		child.On.SetValue(false)
+		child.OutletInUse.SetValue(false)
 	}
 
-	h.Outlets[e.Slot].Watt.SetValue(int(e.PowerMW / 1000))
-	h.Outlets[e.Slot].Amp.SetValue(int(e.CurrentMA))
+	child.Watt.SetValue(int(e.PowerMW / 1000))
+	child.Amp.SetValue(int(e.CurrentMA))
 }
