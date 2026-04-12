@@ -168,11 +168,39 @@ func (h *KP115) update(k kasa.KasaDevice, ip net.IP) {
 	}
 
 	v := h.Outlet.Volt.Value()
-	if v < 114 {
-		log.Info.Printf("ALERT: [%s] low voltage: %d", k.GetSysinfo.Sysinfo.Alias, v)
-	}
-	if v > 127 {
-		log.Info.Printf("ALERT: [%s] high voltage: %d", k.GetSysinfo.Sysinfo.Alias, v)
+	switch {
+	case v > 130:
+		log.Info.Printf("[%s] dangerously high voltage: %dV", h.Sysinfo.Alias, v)
+		h.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+
+		k, _ := newKasaIP(h.ip)
+		if err := k.SetRelayState(false); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+		h.Outlet.On.SetValue(false)
+		h.Outlet.OutletInUse.SetValue(false)
+	case v > 127:
+		log.Info.Printf("[%s] high voltage: %dV", h.Sysinfo.Alias, v)
+		if h.StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			h.StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		}
+	case v < 114:
+		log.Info.Printf("[%s] low voltage: %dV", h.Sysinfo.Alias, v)
+		if h.StatusFault.Value() == characteristic.StatusFaultGeneralFault {
+			h.StatusFault.SetValue(characteristic.StatusFaultNoFault)
+		}
+	case v < 110:
+		log.Info.Printf("[%s] dangerously low voltage: %dV", h.Sysinfo.Alias, v)
+		h.StatusFault.SetValue(characteristic.StatusFaultGeneralFault)
+
+		k, _ := newKasaIP(h.ip)
+		if err := k.SetRelayState(false); err != nil {
+			log.Info.Println(err.Error())
+			return
+		}
+		h.Outlet.On.SetValue(false)
+		h.Outlet.OutletInUse.SetValue(false)
 	}
 }
 

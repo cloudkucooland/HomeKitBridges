@@ -57,6 +57,7 @@ func NewHS300(k kasa.KasaDevice, ip net.IP) *HS300 {
 			o.OutletInUse.SetValue(newstate)
 		})
 
+        // HomeKit removed this, leaving our part in place
 		o.Name.OnValueRemoteUpdate(func(newname string) {
 			log.Info.Printf("[%s][%d] new name %s", acc.Sysinfo.Alias, idx, newname)
 			full := fmt.Sprintf("%s%s", acc.Sysinfo.DeviceID, acc.Sysinfo.Children[idx].ID)
@@ -102,7 +103,7 @@ func newHS300OutletSvc() *hs300outletSvc {
 	svc.OutletInUse = characteristic.NewOutletInUse()
 	svc.AddC(svc.OutletInUse.C)
 
-	// doesn't work (anymore, did in older versions of HAP)
+	// HomeKit no longer sends updates
 	svc.Name = characteristic.NewName()
 	svc.Name.Permissions = []string{characteristic.PermissionRead, characteristic.PermissionWrite}
 	svc.AddC(svc.Name.C)
@@ -150,6 +151,7 @@ func (h *HS300) update(k kasa.KasaDevice, ip net.IP) {
 			outlet.OutletInUse.SetValue(data.RelayState > 0)
 		}
 
+        // HomeKit ignores name updates
 		if outlet.Name.Value() != data.Alias {
 			log.Info.Printf("updating HomeKit: [%s][%s] name %s", k.GetSysinfo.Sysinfo.Alias, id, data.Alias)
 			outlet.Name.SetValue(data.Alias)
