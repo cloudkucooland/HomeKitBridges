@@ -13,7 +13,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/redgoose/daikin-skyport"
+	"github.com/cloudkucooland/go-daikin"
     "github.com/cloudkucooland/HomeKitBridges/DaikinOneHKBridge"
 
 )
@@ -61,17 +61,20 @@ func main() {
 			}
 
 			// start the daikin logic
-			d := daikin.New(conf.Email, conf.Password)
-			devices, err := d.GetDevices()
+			d, err := daikin.New(context.Background(), conf.Email, conf.DeveloperKey, conf.APIKey)
 			if err != nil {
 				log.Info.Panic(err.Error())
 			}
 
 			// if we want to be smart, we can add each and every, now just use the last since I only have one
+			if len(d.Devices) == 0 {
+				log.Info.Panic("no daikin devices found")
+			}
+
 			var device *daikin.Device
-			for _, d := range *devices {
-				log.Info.Printf("%+v", d)
-				device = &d
+			for i := range d.Devices {
+				log.Info.Printf("%+v", d.Devices[i])
+				device = &d.Devices[i]
 			}
 
 			// build the HAP device
@@ -87,19 +90,19 @@ func main() {
 			ctx, cancel := context.WithCancel(context.Background())
 
 			// update the thermostat with data from Daikin cloud -- move this into the devices.go file, should be per device
-			go func(ctx context.Context, thermostat *dhkb.DaikinAccessory) {
+			go func(ctx context.Context, thermostat *dhkb.DaikinAccessory, client *daikin.Client) {
 				ticker := time.NewTicker(180 * time.Second)
 				defer ticker.Stop()
 
 				for {
 					select {
 					case <-ticker.C:
-						dhkb.Update(thermostat, d)
+						dhkb.Update(thermostat)
 					case <-ctx.Done():
 						return
 					}
 				}
-			}(ctx, thermostat)
+			}(ctx, thermostat, d)
 
 			// serve HomeKit
 			go func(ctx context.Context) {

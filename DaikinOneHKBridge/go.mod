@@ -1,10 +1,10 @@
 module github.com/cloudkucooland/HomeKitBridges/DaikinOneHKBridge
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/brutella/hap v0.0.35
-	github.com/redgoose/daikin-skyport v0.0.0-20231008000221-121efc147b9a
+	github.com/cloudkucooland/go-daikin v0.0.0-20260420020405-2b73bef50f26
 	github.com/urfave/cli/v2 v2.27.7
 )
 

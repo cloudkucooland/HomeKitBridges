@@ -1,25 +1,23 @@
-package dhkb
+package ohkb
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/brutella/hap/log"
 )
 
-// Config is the basic internal config
 type Config struct {
-	Email        string
-	DeveloperKey string
-	APIKey       string
+	IP   string `json:"ip"`   // IP address or "" for auto-discover
+	Poll uint16 `json:"poll"` // seconds between status polls
+	Pin  string `json:"pin"`  // setup PIN
 }
 
 func LoadConfig(filename string) (*Config, error) {
 	conf := Config{
-		DeveloperKey: "mydevkey",
-		APIKey:       "myapikey",
-		Email:        "test@test.com",
+		Poll: 60,
 	}
 
 	confFile, err := os.Open(filename)
@@ -37,8 +35,7 @@ func LoadConfig(filename string) (*Config, error) {
 
 	err = json.Unmarshal(raw, &conf)
 	if err != nil {
-		log.Info.Printf("%s\nunable to parse config %s: using defaults\nraw: %s\n%+v", err.Error(), filename, string(raw), conf)
-		return &conf, err
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return &conf, nil

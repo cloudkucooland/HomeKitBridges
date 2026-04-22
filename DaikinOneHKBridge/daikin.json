@@ -1,4 +1,5 @@
 {
     "Email": "test@example.com",
-    "Password": "trustno1"
+    "DeveloperKey": "your-dev-key",
+    "APIKey": "your-api-key"
 }

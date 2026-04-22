@@ -2,129 +2,94 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"io"
+	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
-	"time"
+	"sync"
 
 	"github.com/cloudkucooland/HomeKitBridges/OnkyoHKBridge"
 
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/log"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func main() {
-	var dir, file string
-	var debug bool
-
-	app := cli.App{
-		Name:  "onkyo homekit bridge",
-		Usage: "server",
+	cmd := &cli.Command{
+		Name:  "onkyo-homekit",
+		Usage: "HomeKit Bridge for Onkyo receivers",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "dir",
-				Value:       "/var/db/HomeKitBridges/Onkyo",
-				Usage:       "configuration directory",
-				Destination: &dir,
+				Name:  "dir",
+				Value: "/var/db/HomeKitBridges/Onkyo",
+				Usage: "configuration directory",
 			},
 			&cli.StringFlag{
-				Name:        "config",
-				Value:       "ohkb.json",
-				Usage:       "configuration file",
-				Destination: &file,
+				Name:  "config",
+				Value: "ohkb.json",
+				Usage: "configuration file",
 			},
 			&cli.BoolFlag{
-				Name:        "debug",
-				Value:       false,
-				Usage:       "enable debug",
-				Destination: &debug,
+				Name:  "debug",
+				Value: false,
+				Usage: "enable debug logging",
 			},
 		},
-		Action: func(c *cli.Context) error {
-			if debug {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Bool("debug") {
 				log.Debug.Enable()
 			}
 
+			dir := cmd.String("dir")
+			file := cmd.String("config")
+
 			fulldir, err := filepath.Abs(dir)
 			if err != nil {
-				log.Info.Panic("unable to get config directory", dir)
+				return err
 			}
+
 			cfd := filepath.Join(fulldir, file)
-			confFile, err := os.Open(cfd)
+			conf, err := ohkb.LoadConfig(cfd)
 			if err != nil {
-				log.Info.Panic("unable to open config: ", cfd)
+				return fmt.Errorf("could not initialize config: %w", err)
 			}
-			raw, err := io.ReadAll(confFile)
-			if err != nil {
-				log.Info.Panic(err)
-			}
-			confFile.Close()
-
-			conf := config{}
-			err = json.Unmarshal(raw, &conf)
-			if err != nil {
-				log.Info.Panic(err, string(raw))
-			}
-			// defaults
-			if conf.Poll == 0 {
-				conf.Poll = 60
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
 
 			// discover & configure onkyo device
-			receiver, err := ohkb.DiscoverOnkyo(ctx, conf.IP)
+			receiver, err := ohkb.DiscoverOnkyo(ctx, conf.IP, conf.Poll)
 			if err != nil {
-				log.Info.Panic(err)
+				return err
 			}
-
-			// start onkyo background puller -- move to DiscoverOnkyo
-			go func() {
-				t := time.Tick(time.Duration(conf.Poll) * time.Second)
-				select {
-				case <-ctx.Done():
-					return
-				case <-t:
-					receiver.Update()
-				}
-			}()
 
 			s, err := hap.NewServer(hap.NewFsStore(fulldir), receiver.A)
 			if err != nil {
-				log.Info.Panic(err)
+				return err
 			}
+
 			if conf.Pin != "" {
 				s.Pin = conf.Pin
 			}
 
-			// await context cancel
-			go s.ListenAndServe(ctx)
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := s.ListenAndServe(ctx); err != nil {
+					log.Info.Println("HAP server stopped:", err)
+				}
+			}()
 
-			// wait for signal to shut down
-			sigch := make(chan os.Signal, 3)
-			signal.Notify(sigch, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
+			log.Info.Println("Bridge is running. Press Ctrl+C to terminate.")
 
-			// loop until signal sent
-			sig := <-sigch
+			<-ctx.Done()
 
-			log.Info.Printf("shutdown requested by signal: %s", sig)
-			cancel()
+			log.Info.Println("Shutting down services...")
+			wg.Wait()
 			return nil
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Info.Panic(err)
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		log.Info.Fatal(err)
 	}
-}
-
-type config struct {
-	IP   string // IP address or "" for auto-discover
-	Poll uint16 // seconds between status polls
-	Pin  string // setup PIN
 }

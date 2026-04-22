@@ -1,9 +1,9 @@
 package dhkb
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/redgoose/daikin-skyport"
+	"github.com/cloudkucooland/go-daikin"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -15,17 +15,20 @@ type DaikinAccessory struct {
 	Thermostat *daikinThermostat
 	Fan        *daikinFan
 	Filter     *daikinFilter
+	Device     *daikin.Device
 }
 
-func NewDaikinOne(da *daikin.Daikin, details *daikin.Device) *DaikinAccessory {
-	a := DaikinAccessory{}
+func NewDaikinOne(client *daikin.Client, device *daikin.Device) *DaikinAccessory {
+	a := DaikinAccessory{
+		Device: device,
+	}
 
 	info := accessory.Info{
-		Name:         details.Name,
-		SerialNumber: details.Id,
+		Name:         device.Name,
+		SerialNumber: device.ID,
 		Manufacturer: "Daikin",
-		Model:        details.Model,
-		Firmware:     details.FirmwareVersion,
+		Model:        device.Model,
+		Firmware:     device.FirmwareVersion,
 	}
 
 	a.A = accessory.New(info, accessory.TypeThermostat)
@@ -39,7 +42,7 @@ func NewDaikinOne(da *daikin.Daikin, details *daikin.Device) *DaikinAccessory {
 	a.Filter = newDaikinFilter()
 	a.AddS(a.Filter.S)
 
-	status, err := da.GetDeviceInfo(details.Id)
+	status, err := device.GetInfo(context.Background())
 	if err != nil {
 		log.Info.Println(err.Error())
 		return &a
@@ -51,243 +54,177 @@ func NewDaikinOne(da *daikin.Daikin, details *daikin.Device) *DaikinAccessory {
 	switch status.Mode {
 	case daikin.ModeHeat:
 		hapMode = characteristic.CurrentHeatingCoolingStateHeat
-		targetTemp = float64(status.HspActive)
+		targetTemp = status.HeatSetpoint
 	case daikin.ModeCool:
 		hapMode = characteristic.CurrentHeatingCoolingStateCool
-		targetTemp = float64(status.CspActive)
+		targetTemp = status.CoolSetpoint
 	case daikin.ModeAuto:
-		// hapMode = characteristic.CurrentHeatingCoolingStateAuto
-		targetTemp = float64(status.CspActive) - 2.5
+		// CurrentHeatingCoolingState doesn't have Auto, only Target does.
+		hapMode = characteristic.CurrentHeatingCoolingStateOff
+		targetTemp = status.CoolSetpoint - 2.5
 	case daikin.ModeOff:
 		hapMode = characteristic.CurrentHeatingCoolingStateOff
-		targetTemp = float64(status.CspActive)
+		targetTemp = status.CoolSetpoint
 	}
 	a.Thermostat.CurrentHeatingCoolingState.SetValue(hapMode)
 	a.Thermostat.TargetHeatingCoolingState.SetValue(hapMode)
 	a.Thermostat.TargetTemperature.SetValue(targetTemp)
-	a.Thermostat.CurrentTemperature.SetValue(float64(status.TempIndoor))
-	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.HumIndoor))
-	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSP))
-	a.Thermostat.CoolingThresholdTemperature.SetValue(float64(status.CspActive))
-	a.Thermostat.HeatingThresholdTemperature.SetValue(float64(status.HspActive))
+	a.Thermostat.CurrentTemperature.SetValue(status.IndoorTemp)
+	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.IndoorHumidity))
+	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSetpoint))
+	a.Thermostat.CoolingThresholdTemperature.SetValue(status.CoolSetpoint)
+	a.Thermostat.HeatingThresholdTemperature.SetValue(status.HeatSetpoint)
 
-	a.Thermostat.TemperatureDisplayUnits.SetValue(status.Units)
+	a.Thermostat.TemperatureDisplayUnits.SetValue(0)
 	a.Thermostat.TemperatureDisplayUnits.OnValueRemoteUpdate(func(s int) {
-		log.Info.Printf("setting display units to %d from handler", s)
-		// Homekit and Daikin flip these...
-		x := 1
-		if s == 1 {
-			x = 0
-		}
-		json := fmt.Sprintf(`{"units": %d}`, x)
-		if err := da.UpdateDeviceRaw(a.Info.SerialNumber.Value(), json); err != nil {
-			log.Info.Println(err.Error())
-		}
+		log.Info.Printf("setting display units to %d from handler (unsupported)", s)
 	})
 
 	// add handler for setting the system state
 	a.Thermostat.TargetHeatingCoolingState.OnValueRemoteUpdate(func(s int) {
 		log.Info.Printf("setting target state to %d from handler", s)
-		setPoint := daikin.SetTempParams{}
+		mode := daikin.ModeOff
+		heat := a.Thermostat.HeatingThresholdTemperature.Value()
+		cool := a.Thermostat.CoolingThresholdTemperature.Value()
 
 		// convert homekit value to values the daikin wants
 		switch s {
-		case characteristic.CurrentHeatingCoolingStateOff:
-			if err := da.SetMode(a.Info.SerialNumber.Value(), daikin.ModeOff); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-			setPoint.HeatSetpoint = float32(20)
-			setPoint.CoolSetpoint = float32(25)
-		case characteristic.CurrentHeatingCoolingStateCool:
-			if err := da.SetMode(a.Info.SerialNumber.Value(), daikin.ModeCool); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-			setPoint.HeatSetpoint = float32(a.Thermostat.TargetTemperature.Value() - 5)
-			setPoint.CoolSetpoint = float32(a.Thermostat.TargetTemperature.Value())
-		case characteristic.CurrentHeatingCoolingStateHeat:
-			if err := da.SetMode(a.Info.SerialNumber.Value(), daikin.ModeHeat); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-			setPoint.HeatSetpoint = float32(a.Thermostat.TargetTemperature.Value())
-			setPoint.CoolSetpoint = float32(a.Thermostat.TargetTemperature.Value() + 5)
-		default: // characteristic.CurrentHeatingCoolingStateAuto:
-			if err := da.SetMode(a.Info.SerialNumber.Value(), daikin.ModeAuto); err != nil {
-				log.Info.Println(err.Error())
-				return
-			}
-			setPoint.HeatSetpoint = float32(a.Thermostat.TargetTemperature.Value() - 2.5)
-			setPoint.CoolSetpoint = float32(a.Thermostat.TargetTemperature.Value() + 2.5)
+		case characteristic.TargetHeatingCoolingStateOff:
+			mode = daikin.ModeOff
+		case characteristic.TargetHeatingCoolingStateCool:
+			mode = daikin.ModeCool
+			cool = a.Thermostat.TargetTemperature.Value()
+			heat = cool - 5
+		case characteristic.TargetHeatingCoolingStateHeat:
+			mode = daikin.ModeHeat
+			heat = a.Thermostat.TargetTemperature.Value()
+			cool = heat + 5
+		case characteristic.TargetHeatingCoolingStateAuto:
+			mode = daikin.ModeAuto
+			target := a.Thermostat.TargetTemperature.Value()
+			heat = target - 2.5
+			cool = target + 2.5
 		}
 
-		log.Info.Printf("%+v", setPoint)
-		if err := da.SetTemp(a.Info.SerialNumber.Value(), setPoint); err != nil {
+		if err := a.Device.SetTemps(context.Background(), mode, heat, cool); err != nil {
 			log.Info.Println(err.Error())
-			return
 		}
 	})
 
 	a.Thermostat.TargetTemperature.OnValueRemoteUpdate(func(s float64) {
 		log.Info.Printf("setting target temperature to %f from handler", s)
-		setPoint := daikin.SetTempParams{}
+		mode := daikin.SystemMode(a.Thermostat.TargetHeatingCoolingState.Value())
+		heat := a.Thermostat.HeatingThresholdTemperature.Value()
+		cool := a.Thermostat.CoolingThresholdTemperature.Value()
 
-		// convert homekit valuesto values the daikin wants
-		switch a.Thermostat.CurrentHeatingCoolingState.Value() {
-		case characteristic.CurrentHeatingCoolingStateOff:
-			setPoint.HeatSetpoint = float32(20)
-			setPoint.CoolSetpoint = float32(25)
-		case characteristic.CurrentHeatingCoolingStateCool:
-			setPoint.HeatSetpoint = float32(s - 5)
-			setPoint.CoolSetpoint = float32(s)
-		case characteristic.CurrentHeatingCoolingStateHeat:
-			setPoint.HeatSetpoint = float32(s)
-			setPoint.CoolSetpoint = float32(s + 5)
+		switch mode {
+		case daikin.ModeOff:
+			heat = 20
+			cool = 25
+		case daikin.ModeCool:
+			heat = s - 5
+			cool = s
+		case daikin.ModeHeat:
+			heat = s
+			cool = s + 5
 		default:
-			setPoint.HeatSetpoint = float32(a.Thermostat.TargetTemperature.Value() - 2.5)
-			setPoint.CoolSetpoint = float32(a.Thermostat.TargetTemperature.Value() + 2.5)
+			heat = s - 2.5
+			cool = s + 2.5
 		}
 
-		// log.Info.Printf("%+v", setPoint)
-		if err := da.SetTemp(a.Info.SerialNumber.Value(), setPoint); err != nil {
+		if err := a.Device.SetTemps(context.Background(), mode, heat, cool); err != nil {
 			log.Info.Println(err.Error())
 		}
 	})
 
 	a.Thermostat.TargetRelativeHumidity.OnValueRemoteUpdate(func(s float64) {
 		log.Info.Printf("setting target relative humidity to %f from handler", s)
-		json := fmt.Sprintf(`{"dehumSP": %f}`, s)
-		if err := da.UpdateDeviceRaw(a.Info.SerialNumber.Value(), json); err != nil {
+		if err := a.Device.SetDehumidifySetpoint(context.Background(), int(s)); err != nil {
 			log.Info.Println(err.Error())
 		}
 	})
 
-	switch status.FanCirculate {
-	case daikin.FanCirculateOff:
-		a.Fan.Active.SetValue(characteristic.CurrentFanStateInactive)
-	case daikin.FanCirculateOn:
-		a.Fan.Active.SetValue(characteristic.CurrentFanStateBlowingAir)
-	case daikin.FanCirculateSched:
-		a.Fan.Active.SetValue(characteristic.CurrentFanStateIdle)
+	if status.FanCirculate > 0 {
+		a.Fan.Active.SetValue(characteristic.ActiveActive)
+	} else {
+		a.Fan.Active.SetValue(characteristic.ActiveInactive)
 	}
 
 	// never go to Off, just return to the schededule
 	a.Fan.Active.OnValueRemoteUpdate(func(s int) {
-		switch s {
-		case characteristic.CurrentFanStateBlowingAir:
-			log.Info.Printf("setting fan state to On from handler")
-			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateOn)
-		case characteristic.CurrentFanStateIdle:
-			log.Info.Printf("setting fan state to Idle from handler")
-			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateSched)
-		case characteristic.CurrentFanStateInactive:
-			log.Info.Printf("setting fan state to Inactive from handler")
-			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateSched)
-		default:
-			log.Info.Printf("setting fan state to Default from handler")
-			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateSched)
+		log.Info.Printf("setting fan state to %d from handler", s)
+		circulate := 0
+		if s == characteristic.ActiveActive {
+			circulate = 1
+		}
+		if err := a.Device.SetFan(context.Background(), int(status.Fan), circulate); err != nil {
+			log.Info.Println(err.Error())
 		}
 	})
 
 	a.Fan.TargetState.SetValue(characteristic.TargetFanStateAuto)
 	a.Fan.TargetState.OnValueRemoteUpdate(func(s int) {
-		switch s {
-		case characteristic.TargetFanStateManual:
-			log.Info.Printf("setting target fan state Manual from handler")
-			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateOn)
-		default:
-			log.Info.Printf("setting target fan state Automatic from handler")
-			da.SetFanMode(a.Info.SerialNumber.Value(), daikin.FanCirculateSched)
+		log.Info.Printf("setting target fan state to %d from handler", s)
+		mode := 0 // Auto
+		if s == characteristic.TargetFanStateManual {
+			mode = 1 // On
+		}
+		if err := a.Device.SetFan(context.Background(), mode, 1); err != nil {
+			log.Info.Println(err.Error())
 		}
 	})
-
-	switch status.FanCirculateSpeed {
-	case daikin.FanCirculateSpeedLow:
-		a.Fan.RotationSpeed.SetValue(33)
-	case daikin.FanCirculateSpeedMed:
-		a.Fan.RotationSpeed.SetValue(66)
-	case daikin.FanCirculateSpeedHigh:
-		a.Fan.RotationSpeed.SetValue(99)
-	}
 
 	a.Fan.RotationSpeed.OnValueRemoteUpdate(func(s float64) {
-		log.Info.Printf("setting fan rotational speed to %f from handler", s)
-		rs := daikin.FanCirculateSpeedLow
-		if s > 33 {
-			rs = daikin.FanCirculateSpeedMed
-		}
-		if s > 66 {
-			rs = daikin.FanCirculateSpeedHigh
-		}
-		da.SetFanSpeed(a.Info.SerialNumber.Value(), rs)
+		log.Info.Printf("setting fan rotational speed to %f from handler (unsupported)", s)
 	})
 
-	if status.AlertMediaAirFilterActive {
+	if status.ActiveError != "" {
 		a.Filter.FilterChangeIndication.SetValue(1)
 	}
 
 	return &a
 }
 
-func Update(a *DaikinAccessory, d *daikin.Daikin) error {
-	status, err := d.GetDeviceInfo(a.Info.SerialNumber.Value())
+func Update(a *DaikinAccessory) error {
+	status, err := a.Device.GetInfo(context.Background())
 	if err != nil {
 		return err
 	}
 
-	// log.Info.Printf("%+v", status)
-
-	a.Thermostat.CurrentTemperature.SetValue(float64(status.TempIndoor))
-	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.HumIndoor))
-	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSP))
-	a.Thermostat.CoolingThresholdTemperature.SetValue(float64(status.CspActive))
-	a.Thermostat.HeatingThresholdTemperature.SetValue(float64(status.HspActive))
+	a.Thermostat.CurrentTemperature.SetValue(status.IndoorTemp)
+	a.Thermostat.CurrentRelativeHumidity.SetValue(float64(status.IndoorHumidity))
+	a.Thermostat.TargetRelativeHumidity.SetValue(float64(status.DehumSetpoint))
+	a.Thermostat.CoolingThresholdTemperature.SetValue(status.CoolSetpoint)
+	a.Thermostat.HeatingThresholdTemperature.SetValue(status.HeatSetpoint)
 
 	hapMode := characteristic.CurrentHeatingCoolingStateOff
 	var targetTemp float64 = a.Thermostat.TargetTemperature.Value()
 	switch status.Mode {
 	case daikin.ModeHeat:
 		hapMode = characteristic.CurrentHeatingCoolingStateHeat
-		targetTemp = float64(status.HspActive)
+		targetTemp = status.HeatSetpoint
 	case daikin.ModeCool:
 		hapMode = characteristic.CurrentHeatingCoolingStateCool
-		targetTemp = float64(status.CspActive)
+		targetTemp = status.CoolSetpoint
 	case daikin.ModeAuto:
-		// hapMode = characteristic.CurrentHeatingCoolingStateAuto
-		targetTemp = float64(status.CspActive) - 2.5
+		hapMode = characteristic.TargetHeatingCoolingStateAuto
+		targetTemp = status.CoolSetpoint - 2.5
 	case daikin.ModeOff:
-		hapMode = characteristic.CurrentHeatingCoolingStateOff
-		targetTemp = float64(status.CspActive)
+		hapMode = characteristic.TargetHeatingCoolingStateOff
+		targetTemp = status.CoolSetpoint
 	}
 	a.Thermostat.TargetHeatingCoolingState.SetValue(hapMode)
 	a.Thermostat.TargetTemperature.SetValue(targetTemp)
 
-	switch status.FanCirculate {
-	case daikin.FanCirculateOff:
-		a.Fan.Active.SetValue(characteristic.CurrentFanStateInactive)
-	case daikin.FanCirculateOn:
-		a.Fan.Active.SetValue(characteristic.CurrentFanStateBlowingAir)
-	case daikin.FanCirculateSched:
-		a.Fan.Active.SetValue(characteristic.CurrentFanStateIdle)
+	if status.FanCirculate > 0 {
+		a.Fan.Active.SetValue(characteristic.ActiveActive)
+	} else {
+		a.Fan.Active.SetValue(characteristic.ActiveInactive)
 	}
 
-	switch status.FanCirculateSpeed {
-	case daikin.FanCirculateSpeedLow:
-		a.Fan.RotationSpeed.SetValue(33)
-	case daikin.FanCirculateSpeedMed:
-		a.Fan.RotationSpeed.SetValue(66)
-	case daikin.FanCirculateSpeedHigh:
-		a.Fan.RotationSpeed.SetValue(99)
-	}
-
-	if status.AlertMediaAirFilterActive {
+	if status.ActiveError != "" {
 		a.Filter.FilterChangeIndication.SetValue(1)
 	}
-
-	// % remaining
-	var filtLifeRemaining float64 = (100.0 - ((float64(status.AlertMediaAirFilterDays) / float64(status.AlertMediaAirFilterDaysLimit)) * 100.0))
-	a.Filter.FilterLifeLevel.SetValue(filtLifeRemaining)
 
 	return nil
 }

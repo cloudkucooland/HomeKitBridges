@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/cloudkucooland/go-onkyo"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/brutella/hap/log"
 )
 
-func DiscoverOnkyo(ctx context.Context, ip string) (*OnkyoReceiver, error) {
+func DiscoverOnkyo(ctx context.Context, ip string, pollInterval uint16) (*OnkyoReceiver, error) {
 	dev, err := eiscp.NewReceiver(ip, true)
 	if err != nil {
 		log.Info.Printf(err.Error())
@@ -45,7 +46,7 @@ func DiscoverOnkyo(ctx context.Context, ip string) (*OnkyoReceiver, error) {
 	a.AddInputs(deets)
 	a.AddZones(deets)
 
-	// set initial power state
+	// set initial state
 	power, err := dev.GetPower()
 	if err != nil {
 		log.Info.Println(err.Error())
@@ -64,7 +65,6 @@ func DiscoverOnkyo(ctx context.Context, ip string) (*OnkyoReceiver, error) {
 	} else {
 		i, _ := strconv.ParseInt(string(source), 16, 32)
 		a.Television.ActiveIdentifier.SetValue(int(i))
-		// d.Television.ConfiguredName.SetValue(fmt.Sprintf("%s:%s", a.Info.Name, d.Sources[int(i)]))
 	}
 
 	// NPS does not respond if powered off or not set to SLI network
@@ -75,6 +75,20 @@ func DiscoverOnkyo(ctx context.Context, ip string) (*OnkyoReceiver, error) {
 
 	// start listener for updates from the onkyo
 	go iscpListener(ctx, a)
+
+	// start background puller
+	go func() {
+		ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				a.Update()
+			}
+		}
+	}()
 
 	return a, nil
 }
